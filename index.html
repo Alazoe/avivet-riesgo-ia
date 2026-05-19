@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Riesgo Influenza Aviar — AviVet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{
+  --bg:#f5f4f0;--surface:#fff;--surface2:#f0ede8;
+  --border:#ddd9d0;--border2:#e8e4de;
+  --text:#1a1916;--text2:#5a5650;--text3:#9a948c;
+  --accent:#1b4332;--accent2:#2d6a4f;--accent-l:#d8f3dc;
+  --gold:#b5813a;--gold-l:#fdf3e0;
+  --red:#c0392b;--red-l:#fde8e6;
+  --ok:#1b7a4a;--ok-l:#e8f7ee;
+  --radius:12px;
+  --shadow:0 1px 3px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.04);
+  --shadow-md:0 2px 8px rgba(0,0,0,.08),0 8px 32px rgba(0,0,0,.06);
+  --t-bajo:#2ECC71;--t-bajo-l:#e8f8ef;
+  --t-medio:#d4a017;--t-medio-l:#fdf3d0;
+  --t-alto:#E67E22;--t-alto-l:#fef0e3;
+  --t-muy:#E74C3C;--t-muy-l:#fde8e6;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:"DM Sans",sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;line-height:1.5;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ══ BIENVENIDA ══ */
+#pantalla-inicio{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 20px;animation:fadeIn .5s ease;}
+.inicio-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow-md);max-width:580px;width:100%;overflow:hidden;}
+.inicio-hero{background:var(--accent);padding:36px 36px 28px;position:relative;overflow:hidden;}
+.inicio-hero::before{content:'';position:absolute;top:-40px;right:-40px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.06);}
+.inicio-hero::after{content:'';position:absolute;bottom:-60px;left:-20px;width:220px;height:220px;border-radius:50%;background:rgba(255,255,255,.04);}
+.inicio-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:600;color:rgba(255,255,255,.85);letter-spacing:.5px;text-transform:uppercase;margin-bottom:16px;}
+.inicio-titulo{font-family:"Fraunces",serif;font-size:28px;font-weight:700;color:#fff;line-height:1.2;margin-bottom:8px;position:relative;z-index:1;}
+.inicio-sub{font-size:14px;color:rgba(255,255,255,.7);position:relative;z-index:1;}
+.inicio-body{padding:32px 36px;}
+
+.tiers-preview{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:24px;}
+.tier-chip{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;border:1px solid;}
+.tier-chip.bajo{background:var(--t-bajo-l);border-color:#a8e6c0;color:#145a32;}
+.tier-chip.medio{background:var(--t-medio-l);border-color:#e8d08a;color:#7a5a00;}
+.tier-chip.alto{background:var(--t-alto-l);border-color:#f5c599;color:#8a3e00;}
+.tier-chip.muy{background:var(--t-muy-l);border-color:#f5a9a3;color:#8a1a10;}
+.tier-chip-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.bajo .tier-chip-dot{background:var(--t-bajo);}
+.medio .tier-chip-dot{background:var(--t-medio);}
+.alto .tier-chip-dot{background:var(--t-alto);}
+.muy .tier-chip-dot{background:var(--t-muy);}
+.tier-chip-label{font-size:12px;font-weight:600;}
+.tier-chip-range{font-size:11px;opacity:.7;margin-left:auto;}
+
+.inicio-pasos{display:flex;flex-direction:column;gap:12px;margin-bottom:24px;}
+.paso{display:flex;align-items:flex-start;gap:12px;}
+.paso-num{width:26px;height:26px;border-radius:50%;background:var(--accent-l);color:var(--accent);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.paso-text strong{display:block;font-size:13px;font-weight:600;margin-bottom:1px;}
+.paso-text span{font-size:12px;color:var(--text2);}
+
+.inicio-aviso{background:var(--gold-l);border:1px solid #e8d5a8;border-radius:10px;padding:12px 16px;font-size:12px;color:#7a5a1a;margin-bottom:24px;display:flex;gap:10px;align-items:flex-start;}
+.btn-comenzar{width:100%;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:14px 24px;font-family:"DM Sans",sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:background .2s;display:flex;align-items:center;justify-content:center;gap:8px;}
+.btn-comenzar:hover{background:var(--accent2);}
+.inicio-footer{text-align:center;margin-top:16px;font-size:11px;color:var(--text3);}
+
+/* ══ APP ══ */
+#app{display:none;flex-direction:column;height:100vh;}
+#app.visible{display:flex;animation:fadeIn .4s ease;}
+
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;gap:12px;flex-shrink:0;}
+.logo{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.logo-mark{width:30px;height:30px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.logo-text{font-family:"Fraunces",serif;font-weight:700;font-size:15px;}
+.logo-sub{font-size:10px;color:var(--text3);}
+.osm-pill{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:4px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text2);white-space:nowrap;}
+.osm-dot{width:6px;height:6px;border-radius:50%;background:var(--border);transition:background .3s;}
+.osm-pill.ok{border-color:#a8dfc0;background:var(--ok-l);color:var(--ok);}
+.osm-pill.ok .osm-dot{background:var(--ok);}
+.osm-pill.error{border-color:#f5c6c2;background:var(--red-l);color:var(--red);}
+.osm-pill.error .osm-dot{background:var(--red);}
+.osm-pill.loading{border-color:#e8d5a8;background:var(--gold-l);color:var(--gold);}
+.osm-pill.loading .osm-dot{background:var(--gold);animation:blink .8s infinite;}
+
+.layout{display:flex;flex:1;overflow:hidden;}
+.sidebar{width:200px;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:12px 0;flex-shrink:0;}
+.sidebar-section{padding:6px 14px 4px;font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;}
+.sidebar-item{padding:9px 16px;cursor:pointer;border-left:3px solid transparent;display:flex;align-items:center;gap:8px;transition:background .15s;font-size:13px;font-weight:500;}
+.sidebar-item:hover{background:var(--surface2);}
+.sidebar-item.active{background:var(--accent-l);border-left-color:var(--accent);color:var(--accent);font-weight:600;}
+.content{flex:1;overflow-y:auto;padding:24px 28px;background:var(--bg);}
+@media(max-width:700px){.content{padding:14px;}.sidebar{display:none;}}
+
+.section-header{display:flex;align-items:center;gap:14px;margin-bottom:22px;}
+.section-icon{width:44px;height:44px;background:var(--surface);border:1px solid var(--border);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:var(--shadow);flex-shrink:0;}
+.section-title{font-family:"Fraunces",serif;font-size:21px;font-weight:700;line-height:1.2;}
+.section-meta{font-size:12px;color:var(--text3);margin-top:2px;}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px;margin-bottom:18px;box-shadow:var(--shadow);}
+.card h3{font-size:11px;font-weight:700;color:var(--text3);margin-bottom:16px;text-transform:uppercase;letter-spacing:.5px;}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+@media(max-width:600px){.grid-2,.grid-3{grid-template-columns:1fr;}}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+.form-label{font-size:12px;font-weight:600;color:var(--text2);}
+.form-hint{font-size:11px;color:var(--text3);}
+.form-input,.form-select{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-family:"DM Sans",sans-serif;font-size:14px;width:100%;transition:border-color .15s;}
+.form-input:focus,.form-select:focus{outline:none;border-color:var(--accent);background:#fff;}
+
+.eval-layout{display:grid;grid-template-columns:320px 1fr;gap:18px;align-items:start;}
+@media(max-width:900px){.eval-layout{grid-template-columns:1fr;}}
+.map-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);}
+#map{height:420px;width:100%;}
+.map-legend{padding:12px 16px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:12px;}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+
+.btn-primary{width:100%;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:12px 20px;font-family:"DM Sans",sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px;}
+.btn-primary:hover{background:var(--accent2);}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;}
+.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+
+/* ══ RESULTADO ══ */
+.resultado-wrap{margin-top:18px;}
+.resultado-tier{border-radius:var(--radius);padding:20px 24px;border:2px solid;display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px;}
+.resultado-tier.bajo{background:var(--t-bajo-l);border-color:var(--t-bajo);}
+.resultado-tier.medio{background:var(--t-medio-l);border-color:var(--t-medio);}
+.resultado-tier.alto{background:var(--t-alto-l);border-color:var(--t-alto);}
+.resultado-tier.muy{background:var(--t-muy-l);border-color:var(--t-muy);}
+.resultado-emoji{font-size:2.4rem;flex-shrink:0;}
+.resultado-label{font-family:"Fraunces",serif;font-size:22px;font-weight:700;}
+.resultado-score{font-size:1.4rem;font-weight:700;}
+.resultado-date{font-size:12px;opacity:.7;}
+
+.breakdown-table{width:100%;border-collapse:collapse;font-size:13px;}
+.breakdown-table th{text-align:left;padding:7px 10px;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);}
+.breakdown-table td{padding:9px 10px;border-bottom:1px solid var(--border2);}
+.breakdown-table tr:last-child td{border-bottom:none;}
+.pts-cell{font-weight:700;text-align:center;}
+.bar-wrap{width:90px;}
+.bar-bg{background:var(--border);border-radius:4px;height:8px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:4px;transition:width .5s ease;}
+
+/* ══ PLANTELES ══ */
+.table-wrap{overflow-x:auto;}
+table.data-table{width:100%;border-collapse:collapse;font-size:13px;}
+.data-table th{text-align:left;padding:9px 12px;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border);white-space:nowrap;}
+.data-table td{padding:10px 12px;border-bottom:1px solid var(--border2);vertical-align:middle;}
+.data-table tr:last-child td{border-bottom:none;}
+.data-table tr:hover td{background:var(--surface2);}
+.del-btn{background:none;border:none;cursor:pointer;color:var(--text3);padding:4px;border-radius:5px;transition:color .15s;}
+.del-btn:hover{color:var(--red);}
+.empty-state{text-align:center;padding:48px 20px;color:var(--text3);}
+.empty-state p{font-size:14px;margin-top:8px;}
+
+.tipo-badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;border:1px solid;white-space:nowrap;}
+.tipo-badge.acuaticas{background:#e3f2fd;border-color:#90caf9;color:#1565c0;}
+.tipo-badge.freerange{background:var(--accent-l);border-color:#a8dfc0;color:var(--accent);}
+.tipo-badge.confinado{background:var(--surface2);border-color:var(--border);color:var(--text2);}
+.tipo-badge.traspatio{background:var(--gold-l);border-color:#e8d5a8;color:var(--gold);}
+
+.btn-secondary{background:var(--surface);color:var(--accent);border:1px solid var(--accent);border-radius:8px;padding:8px 16px;font-family:"DM Sans",sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-secondary:hover{background:var(--accent-l);}
+.btn-danger{background:var(--surface);color:var(--red);border:1px solid #f5c6c2;border-radius:8px;padding:8px 16px;font-family:"DM Sans",sans-serif;font-size:13px;font-weight:600;cursor:pointer;}
+.btn-danger:hover{background:var(--red-l);}
+
+.metodologia-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;}
+.met-item{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;}
+.met-item-icon{font-size:1.4rem;margin-bottom:8px;}
+.met-item-title{font-size:13px;font-weight:600;margin-bottom:6px;}
+.met-item-body{font-size:12px;color:var(--text2);line-height:1.5;}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════ BIENVENIDA -->
+<div id="pantalla-inicio">
+  <div class="inicio-card">
+    <div class="inicio-hero">
+      <div class="inicio-badge">🦠 AviVet — Herramientas</div>
+      <h1 class="inicio-titulo">Escala de Riesgo<br>Influenza Aviar</h1>
+      <p class="inicio-sub">Evaluación geoespacial para planteles avícolas</p>
+    </div>
+    <div class="inicio-body">
+
+      <div class="tiers-preview">
+        <div class="tier-chip bajo"><div class="tier-chip-dot"></div><span class="tier-chip-label">BAJO</span><span class="tier-chip-range">0–3 pts</span></div>
+        <div class="tier-chip medio"><div class="tier-chip-dot"></div><span class="tier-chip-label">MEDIO</span><span class="tier-chip-range">4–6 pts</span></div>
+        <div class="tier-chip alto"><div class="tier-chip-dot"></div><span class="tier-chip-label">ALTO</span><span class="tier-chip-range">7–9 pts</span></div>
+        <div class="tier-chip muy"><div class="tier-chip-dot"></div><span class="tier-chip-label">MUY ALTO</span><span class="tier-chip-range">10–12 pts</span></div>
+      </div>
+
+      <div class="inicio-pasos">
+        <div class="paso">
+          <div class="paso-num">1</div>
+          <div class="paso-text"><strong>Ingresa las coordenadas del plantel</strong><span>Latitud y longitud en grados decimales</span></div>
+        </div>
+        <div class="paso">
+          <div class="paso-num">2</div>
+          <div class="paso-text"><strong>La herramienta consulta OpenStreetMap</strong><span>Detecta automáticamente humedales, ríos y cuerpos de agua en 6 km</span></div>
+        </div>
+        <div class="paso">
+          <div class="paso-num">3</div>
+          <div class="paso-text"><strong>Obtén el mapa de riesgo</strong><span>Puntaje por factor y visualización interactiva</span></div>
+        </div>
+      </div>
+
+      <div class="inicio-aviso">
+        <span style="font-size:16px;flex-shrink:0;">📡</span>
+        <span>Requiere conexión a internet para consultar cuerpos de agua. Los planteles registrados se guardan localmente en este dispositivo.</span>
+      </div>
+
+      <button class="btn-comenzar" onclick="mostrarApp()">Comenzar evaluación →</button>
+    </div>
+  </div>
+  <p class="inicio-footer">Basado en Yoo et al. 2021 · Azat et al. 2024 · Jindal et al. 2026 · Cárdenas et al. 2026</p>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ APP -->
+<div id="app">
+  <header>
+    <div class="logo">
+      <div class="logo-mark">🦠</div>
+      <div>
+        <div class="logo-text">AviVet</div>
+        <div class="logo-sub">Riesgo IA Aviar</div>
+      </div>
+    </div>
+    <div id="osm-pill" class="osm-pill">
+      <div class="osm-dot"></div>
+      <span id="osm-label">OpenStreetMap</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-section">Módulos</div>
+      <div class="sidebar-item active" id="nav-eval" onclick="showTab('eval')">🗺️ Evaluación</div>
+      <div class="sidebar-item" id="nav-farms" onclick="showTab('farms')">🏭 Mis planteles</div>
+      <div class="sidebar-item" id="nav-met" onclick="showTab('met')">📋 Metodología</div>
+    </div>
+
+    <div class="content">
+
+      <!-- ── TAB: EVALUACIÓN ─────────────────────────────── -->
+      <div id="tab-eval">
+        <div class="section-header">
+          <div class="section-icon">🗺️</div>
+          <div>
+            <div class="section-title">Evaluación de riesgo</div>
+            <div class="section-meta">Escala 0–12 pts · 4 factores · Datos OSM en tiempo real</div>
+          </div>
+        </div>
+
+        <div class="eval-layout">
+          <!-- Formulario -->
+          <div>
+            <div class="card">
+              <h3>Datos del plantel</h3>
+              <div class="form-group" style="margin-bottom:14px;">
+                <label class="form-label">Nombre del plantel</label>
+                <input type="text" class="form-input" id="inp-nombre" placeholder="Ej. La Esperanza" value="">
+              </div>
+              <div class="grid-2" style="margin-bottom:14px;">
+                <div class="form-group">
+                  <label class="form-label">Latitud</label>
+                  <input type="number" class="form-input" id="inp-lat" step="0.000001" placeholder="-39.819600" value="-39.8196">
+                  <span class="form-hint">Negativo = sur</span>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Longitud</label>
+                  <input type="number" class="form-input" id="inp-lon" step="0.000001" placeholder="-73.245200" value="-73.2452">
+                  <span class="form-hint">Negativo = oeste</span>
+                </div>
+              </div>
+              <div class="form-group" style="margin-bottom:14px;">
+                <label class="form-label">Tipo de producción</label>
+                <select class="form-select" id="inp-tipo">
+                  <option value="acuaticas">Aves acuáticas / mixto con patos</option>
+                  <option value="freerange" selected>Ponedoras/broilers en acceso exterior</option>
+                  <option value="confinado">Ponedoras/broilers confinadas</option>
+                  <option value="traspatio">Traspatio &lt;50 aves</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom:14px;">
+                <label class="form-label">Planteles industriales identificados visualmente <span style="font-weight:400;color:var(--text3);">(radio 5 km)</span></label>
+                <input type="number" class="form-input" id="inp-farms-manual" min="0" max="20" value="0">
+                <span class="form-hint">Planteles detectados en Google Earth / conocimiento local no registrados en la base de datos</span>
+              </div>
+              <button class="btn-primary" id="btn-calcular" onclick="calcular()">
+                <span id="btn-txt">⚡ Calcular riesgo</span>
+                <div class="spinner" id="btn-spinner" style="display:none;"></div>
+              </button>
+            </div>
+
+            <!-- Resultado -->
+            <div id="resultado-wrap" style="display:none;"></div>
+          </div>
+
+          <!-- Mapa -->
+          <div class="map-wrap">
+            <div id="map"></div>
+            <div class="map-legend">
+              <div class="legend-item"><div class="legend-dot" style="background:#E74C3C;opacity:.5;border:1px solid #E74C3C;"></div>Radio 500 m</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#E67E22;opacity:.5;border:1px solid #E67E22;"></div>Radio 2 km</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#F1C40F;opacity:.4;border:1px solid #d4a017;"></div>Radio 5 km</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#5DADE2;"></div>Agua (OSM)</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#7f8c8d;"></div>Plantel registrado</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── TAB: PLANTELES ─────────────────────────────── -->
+      <div id="tab-farms" style="display:none;">
+        <div class="section-header">
+          <div class="section-icon">🏭</div>
+          <div>
+            <div class="section-title">Mis planteles</div>
+            <div class="section-meta">Registra planteles para contabilizarlos automáticamente en las evaluaciones</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Agregar plantel</h3>
+          <div class="grid-3" style="margin-bottom:14px;">
+            <div class="form-group">
+              <label class="form-label">Nombre *</label>
+              <input type="text" class="form-input" id="f-nombre" placeholder="Nombre del plantel">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Latitud *</label>
+              <input type="number" class="form-input" id="f-lat" step="0.000001" placeholder="-39.8196">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Longitud *</label>
+              <input type="number" class="form-input" id="f-lon" step="0.000001" placeholder="-73.2452">
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="form-label">Tipo de producción</label>
+              <select class="form-select" id="f-tipo">
+                <option value="acuaticas">Aves acuáticas / patos</option>
+                <option value="freerange" selected>Ponedoras/broilers exterior</option>
+                <option value="confinado">Ponedoras/broilers confinadas</option>
+                <option value="traspatio">Traspatio</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Notas (opcional)</label>
+              <input type="text" class="form-input" id="f-notas" placeholder="Observaciones">
+            </div>
+          </div>
+          <div style="margin-top:14px;">
+            <button class="btn-secondary" onclick="agregarPlantel()">+ Guardar plantel</button>
+          </div>
+          <div id="f-msg" style="margin-top:10px;font-size:13px;"></div>
+        </div>
+
+        <div class="card">
+          <h3>Planteles registrados</h3>
+          <div id="tabla-planteles"></div>
+        </div>
+      </div>
+
+      <!-- ── TAB: METODOLOGÍA ─────────────────────────────── -->
+      <div id="tab-met" style="display:none;">
+        <div class="section-header">
+          <div class="section-icon">📋</div>
+          <div>
+            <div class="section-title">Metodología</div>
+            <div class="section-meta">Factores de riesgo, ponderación y fuentes científicas</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Escala de puntaje</h3>
+          <div class="metodologia-grid">
+            <div class="met-item">
+              <div class="met-item-icon">💧</div>
+              <div class="met-item-title">Distancia a cuerpos de agua</div>
+              <div class="met-item-body">Humedales, ríos y lagos son reservorio de aves silvestres migratorias. Distancia calculada automáticamente desde OpenStreetMap.<br><br>
+                &lt;500 m → 3 pts · 500 m–2 km → 2 pts · 2–5 km → 1 pt · &gt;5 km → 0 pts
+              </div>
+            </div>
+            <div class="met-item">
+              <div class="met-item-icon">🏭</div>
+              <div class="met-item-title">Planteles cercanos (5 km)</div>
+              <div class="met-item-body">La transmisión entre planteles a corta distancia es el vector más eficiente post-introducción. OR=6.0 para mismo tipo de especie (Gkrinia 2025).<br><br>
+                ≥2 planteles → 3 pts · 1 plantel → 2 pts · 0 → 0 pts
+              </div>
+            </div>
+            <div class="met-item">
+              <div class="met-item-icon">📅</div>
+              <div class="met-item-title">Estación del año</div>
+              <div class="met-item-body">El verano austral (nov–mar) concentra el mayor riesgo en Chile y Sudamérica por migración e ingreso de HPAI (Jindal 2026, Azat 2024).<br><br>
+                Nov–Mar → 3 pts · Abr–Jun → 2 pts · Jul–Oct → 1 pt
+              </div>
+            </div>
+            <div class="met-item">
+              <div class="met-item-icon">🐔</div>
+              <div class="met-item-title">Tipo de producción</div>
+              <div class="met-item-body">Las aves acuáticas y los sistemas con acceso exterior tienen mayor probabilidad de contacto con aves silvestres (Yoo 2021).<br><br>
+                Acuáticas → 3 pts · Exterior → 2 pts · Confinado → 1 pt · Traspatio → 0 pts
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Fuentes científicas</h3>
+          <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;">
+            <div style="padding:12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
+              <strong>Yoo et al. 2021</strong> — GPS tracking 562 aves + MaxEnt mensual. Distancia a humedal = 33.78% de contribución predictiva. Granjas de patos &gt; pollos en riesgo (nov, p=0.043). <em>Transbound Emerg Dis 69:e953</em>
+            </div>
+            <div style="padding:12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
+              <strong>Azat et al. 2024</strong> — Epidemiología espacio-temporal H5N1 Chile dic 2022–abr 2023. Onda norte→sur 32.76 días/1.000 km. 7 clusters SaTScan. ~800 cisnes muertos en Valdivia. <em>Front Vet Sci 11:1387040</em>
+            </div>
+            <div style="padding:12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
+              <strong>Jindal et al. 2026</strong> — Framework ML global H5N1 (RF AUC 0.990). Verano austral = ventana de alto riesgo en Sudamérica. Densidad ganadera como predictor principal. <em>Transbound Emerg Dis</em>
+            </div>
+            <div style="padding:12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
+              <strong>Cárdenas et al. 2026</strong> — Primer brote HPAI en granja comercial Brasil. 3 días de demora = 4 granjas afectadas; 10 días = 34. SAR: aves migratorias + agua p&lt;0.001. <em>Prev Vet Med 251:106848</em>
+            </div>
+            <div style="padding:12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">
+              <strong>Gkrinia et al. 2025</strong> — Revisión sistemática PRISMA 23 estudios. OR mismo tipo de granja = 6.0; cama no reemplazada OR 28.3; cabina desinfección OR 0.002 (protector). <em>Prev Vet Med 242:106367</em>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /layout -->
+</div><!-- /app -->
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  CONSTANTES Y ESTADO
+// ════════════════════════════════════════════════════════════════
+const DB_KEY = 'avivet_planteles_v1';
+const RADIUS_SEARCH_M = 6000;
+const FARM_RADIUS_KM  = 5.0;
+
+const TIER_CONFIG = {
+  bajo:  { label:'BAJO',     emoji:'🟢', pts:[0,3],  cls:'bajo',  color:'#2ECC71' },
+  medio: { label:'MEDIO',    emoji:'🟡', pts:[4,6],  cls:'medio', color:'#d4a017' },
+  alto:  { label:'ALTO',     emoji:'🟠', pts:[7,9],  cls:'alto',  color:'#E67E22' },
+  muy:   { label:'MUY ALTO', emoji:'🔴', pts:[10,12],cls:'muy',   color:'#E74C3C' },
+};
+
+const TYPE_PTS = { acuaticas:3, freerange:2, confinado:1, traspatio:0 };
+const TYPE_LABEL = {
+  acuaticas:'Aves acuáticas / patos',
+  freerange:'Ponedoras/broilers exterior',
+  confinado:'Ponedoras/broilers confinadas',
+  traspatio:'Traspatio'
+};
+
+let leafletMap = null;
+let mapLayers  = [];
+
+// ════════════════════════════════════════════════════════════════
+//  RIESGO — CÁLCULO
+// ════════════════════════════════════════════════════════════════
+function waterPts(km){
+  if(km < 0.5) return 3;
+  if(km < 2.0) return 2;
+  if(km < 5.0) return 1;
+  return 0;
+}
+function farmsPts(n){ return n >= 2 ? 3 : n === 1 ? 2 : 0; }
+function seasonPts(){
+  const m = new Date().getMonth() + 1;
+  if([11,12,1,2,3].includes(m)) return 3;
+  if([4,5,6].includes(m))       return 2;
+  return 1;
+}
+function typePts(t){ return TYPE_PTS[t] ?? 0; }
+function getTier(total){
+  for(const [k,v] of Object.entries(TIER_CONFIG)){
+    if(total >= v.pts[0] && total <= v.pts[1]) return { key:k, ...v };
+  }
+  return { key:'muy', ...TIER_CONFIG.muy };
+}
+
+// ════════════════════════════════════════════════════════════════
+//  GEOMETRÍA
+// ════════════════════════════════════════════════════════════════
+function haversine(lat1, lon1, lat2, lon2){
+  const R = 6371, r = Math.PI/180;
+  const dLat = (lat2-lat1)*r, dLon = (lon2-lon1)*r;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*r)*Math.cos(lat2*r)*Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ════════════════════════════════════════════════════════════════
+//  OVERPASS API
+// ════════════════════════════════════════════════════════════════
+async function fetchWater(lat, lon){
+  const q = `[out:json][timeout:25];
+(
+  way["natural"="water"](around:${RADIUS_SEARCH_M},${lat},${lon});
+  way["natural"="wetland"](around:${RADIUS_SEARCH_M},${lat},${lon});
+  way["waterway"="river"](around:${RADIUS_SEARCH_M},${lat},${lon});
+  way["waterway"="stream"](around:${RADIUS_SEARCH_M},${lat},${lon});
+  relation["natural"="water"](around:${RADIUS_SEARCH_M},${lat},${lon});
+  node["natural"="water"](around:${RADIUS_SEARCH_M},${lat},${lon});
+);
+out center tags;`;
+
+  const resp = await fetch('https://overpass-api.de/api/interpreter', {
+    method:'POST', body: new URLSearchParams({data: q})
+  });
+  if(!resp.ok) throw new Error('Overpass error');
+  const data = await resp.json();
+
+  const features = [];
+  for(const el of data.elements || []){
+    let clat, clon;
+    if(el.type === 'node'){ clat=el.lat; clon=el.lon; }
+    else if(el.center){ clat=el.center.lat; clon=el.center.lon; }
+    else continue;
+    const tags = el.tags || {};
+    features.push({
+      lat: clat, lon: clon,
+      type: tags.natural || tags.waterway || 'water',
+      name: tags.name || ''
+    });
+  }
+  features.forEach(f => f.dist = haversine(lat, lon, f.lat, f.lon));
+  features.sort((a,b) => a.dist - b.dist);
+  return features;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  BASE DE DATOS (localStorage)
+// ════════════════════════════════════════════════════════════════
+function loadDB(){ try{ return JSON.parse(localStorage.getItem(DB_KEY)) || []; } catch{ return []; } }
+function saveDB(d){ localStorage.setItem(DB_KEY, JSON.stringify(d)); }
+function nearbyFarms(lat, lon){
+  return loadDB().filter(f => haversine(lat, lon, f.lat, f.lon) <= FARM_RADIUS_KM);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  MAPA LEAFLET
+// ════════════════════════════════════════════════════════════════
+function initMap(){
+  if(leafletMap) return;
+  leafletMap = L.map('map').setView([-39.8196, -73.2452], 10);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
+    attribution:'© OpenStreetMap / CartoDB', maxZoom:19
+  }).addTo(leafletMap);
+}
+
+function clearMapLayers(){
+  mapLayers.forEach(l => leafletMap.removeLayer(l));
+  mapLayers = [];
+}
+
+function addLayer(l){ leafletMap.addLayer(l); mapLayers.push(l); }
+
+function renderMap(lat, lon, tier, waterFeatures, dbFarms){
+  initMap();
+  clearMapLayers();
+  leafletMap.setView([lat, lon], 13);
+
+  // Buffer rings
+  const rings = [
+    {r:5000, c:'#F1C40F', o:.08, t:'Radio 5 km'},
+    {r:2000, c:'#E67E22', o:.10, t:'Radio 2 km'},
+    {r:500,  c:'#E74C3C', o:.13, t:'Radio 500 m'},
+  ];
+  rings.forEach(({r,c,o,t}) => addLayer(L.circle([lat,lon],{radius:r,color:c,weight:1.5,fillColor:c,fillOpacity:o}).bindTooltip(t)));
+
+  // Cuerpos de agua (máximo 8)
+  waterFeatures.slice(0,8).forEach(w => {
+    addLayer(L.circleMarker([w.lat,w.lon],{radius:7,color:'#1A6EBF',fillColor:'#5DADE2',fillOpacity:.75,weight:2})
+      .bindTooltip(`💧 ${w.name||w.type} (${w.dist.toFixed(2)} km)`));
+  });
+
+  // Línea al agua más cercana
+  if(waterFeatures.length){
+    const n = waterFeatures[0];
+    addLayer(L.polyline([[lat,lon],[n.lat,n.lon]],{color:'#1A6EBF',weight:1.5,dashArray:'6'}));
+  }
+
+  // Otros planteles del DB
+  dbFarms.forEach(f => {
+    addLayer(L.circleMarker([f.lat,f.lon],{radius:8,color:'#7f8c8d',fillColor:'#95a5a6',fillOpacity:.7,weight:2})
+      .bindTooltip(`🏭 ${f.nombre} — ${TYPE_LABEL[f.tipo]||f.tipo}`));
+  });
+
+  // Plantel evaluado
+  const tierColor = TIER_CONFIG[tier.key]?.color || '#666';
+  const icon = L.divIcon({
+    className:'',
+    html:`<div style="width:22px;height:22px;border-radius:50%;background:${tierColor};border:3px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.4);"></div>`,
+    iconAnchor:[11,11],
+  });
+  const nombre = document.getElementById('inp-nombre').value || 'Plantel evaluado';
+  addLayer(L.marker([lat,lon],{icon}).bindPopup(`<b>${nombre}</b><br>Tier: ${tier.emoji} ${tier.label}<br>Puntos: ${tier.total}/12`).openPopup());
+}
+
+// ════════════════════════════════════════════════════════════════
+//  RENDER RESULTADO
+// ════════════════════════════════════════════════════════════════
+function renderResultado(tier, breakdown, waterDist, dbCount, manualCount){
+  const factors = [
+    { label:'💧 Distancia a agua',          pts: breakdown.water,  max:3, detail: waterDist < 99 ? `${waterDist.toFixed(2)} km` : '>6 km' },
+    { label:'🏭 Planteles cercanos',         pts: breakdown.farms,  max:3, detail: `${dbCount+manualCount} detectados` },
+    { label:'📅 Estación del año',           pts: breakdown.season, max:3, detail: seasonLabel() },
+    { label:'🐔 Tipo de producción propia',  pts: breakdown.type,   max:3, detail: TYPE_LABEL[document.getElementById('inp-tipo').value] },
+  ];
+
+  const barColor = (p,m) => p>=m ? '#E74C3C' : p>=m*.66 ? '#E67E22' : p>=m*.33 ? '#d4a017' : '#2ECC71';
+  const rows = factors.map(f => `
+    <tr>
+      <td>${f.label}</td>
+      <td style="font-size:11px;color:var(--text3);">${f.detail}</td>
+      <td class="pts-cell" style="color:${barColor(f.pts,f.max)}">${f.pts}/${f.max}</td>
+      <td><div class="bar-wrap"><div class="bar-bg"><div class="bar-fill" style="width:${f.pts/f.max*100}%;background:${barColor(f.pts,f.max)};"></div></div></div></td>
+    </tr>`).join('');
+
+  const today = new Date().toLocaleDateString('es-CL');
+
+  document.getElementById('resultado-wrap').style.display = 'block';
+  document.getElementById('resultado-wrap').innerHTML = `
+    <div class="card resultado-wrap">
+      <div class="resultado-tier ${tier.cls}">
+        <div class="resultado-emoji">${tier.emoji}</div>
+        <div>
+          <div class="resultado-label">RIESGO ${tier.label}</div>
+          <div class="resultado-date">Evaluado ${today}</div>
+        </div>
+        <div class="resultado-score">${tier.total}/12</div>
+      </div>
+      <table class="breakdown-table">
+        <thead><tr><th>Factor</th><th>Detalle</th><th>Pts</th><th>Nivel</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function seasonLabel(){
+  const m = new Date().getMonth()+1;
+  if([11,12,1,2,3].includes(m)) return 'Verano austral';
+  if([4,5,6].includes(m))       return 'Otoño austral';
+  return 'Invierno/primavera';
+}
+
+// ════════════════════════════════════════════════════════════════
+//  ACCIÓN PRINCIPAL — CALCULAR
+// ════════════════════════════════════════════════════════════════
+async function calcular(){
+  const lat  = parseFloat(document.getElementById('inp-lat').value);
+  const lon  = parseFloat(document.getElementById('inp-lon').value);
+  const tipo = document.getElementById('inp-tipo').value;
+  const manualFarms = parseInt(document.getElementById('inp-farms-manual').value) || 0;
+
+  if(isNaN(lat)||isNaN(lon)){ alert('Ingresa coordenadas válidas.'); return; }
+  if(lat < -90||lat > 90||lon < -180||lon > 180){ alert('Coordenadas fuera de rango.'); return; }
+
+  setBtnLoading(true);
+  setOsmStatus('loading','Consultando OSM…');
+
+  let waterFeatures = [];
+  let nearestKm = 6.0;
+
+  try{
+    waterFeatures = await fetchWater(lat, lon);
+    nearestKm = waterFeatures.length ? waterFeatures[0].dist : 6.0;
+    setOsmStatus('ok', `${waterFeatures.length} cuerpos de agua`);
+  } catch(e){
+    setOsmStatus('error','Sin conexión OSM');
+    nearestKm = 6.0;
+  }
+
+  const dbNearby = nearbyFarms(lat, lon);
+  const totalFarms = dbNearby.length + manualFarms;
+
+  const w = waterPts(nearestKm);
+  const f = farmsPts(totalFarms);
+  const s = seasonPts();
+  const t = typePts(tipo);
+  const total = w + f + s + t;
+  const tier = { ...getTier(total), total };
+
+  renderMap(lat, lon, tier, waterFeatures, dbNearby);
+  renderResultado(tier, {water:w,farms:f,season:s,type:t}, nearestKm, dbNearby.length, manualFarms);
+
+  setBtnLoading(false);
+}
+
+function setBtnLoading(on){
+  document.getElementById('btn-calcular').disabled = on;
+  document.getElementById('btn-txt').style.display = on ? 'none' : 'block';
+  document.getElementById('btn-spinner').style.display = on ? 'block' : 'none';
+}
+
+function setOsmStatus(cls, text){
+  const p = document.getElementById('osm-pill');
+  p.className = 'osm-pill ' + cls;
+  document.getElementById('osm-label').textContent = text;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  PLANTELES DB
+// ════════════════════════════════════════════════════════════════
+function agregarPlantel(){
+  const nombre = document.getElementById('f-nombre').value.trim();
+  const lat    = parseFloat(document.getElementById('f-lat').value);
+  const lon    = parseFloat(document.getElementById('f-lon').value);
+  const tipo   = document.getElementById('f-tipo').value;
+  const notas  = document.getElementById('f-notas').value.trim();
+  const msg    = document.getElementById('f-msg');
+
+  if(!nombre){ msg.innerHTML='<span style="color:var(--red)">El nombre es obligatorio.</span>'; return; }
+  if(isNaN(lat)||isNaN(lon)){ msg.innerHTML='<span style="color:var(--red)">Coordenadas inválidas.</span>'; return; }
+
+  const db = loadDB();
+  if(db.find(r => r.nombre===nombre)){
+    msg.innerHTML='<span style="color:var(--red)">Ya existe un plantel con ese nombre.</span>'; return;
+  }
+  db.push({ nombre, lat, lon, tipo, notas, fecha: new Date().toLocaleDateString('es-CL') });
+  saveDB(db);
+  msg.innerHTML='<span style="color:var(--ok)">✓ Plantel guardado.</span>';
+  ['f-nombre','f-lat','f-lon','f-notas'].forEach(id => document.getElementById(id).value='');
+  setTimeout(()=>{ msg.innerHTML=''; }, 2500);
+  renderTablaPlantel();
+}
+
+function eliminarPlantel(nombre){
+  if(!confirm(`¿Eliminar «${nombre}»?`)) return;
+  saveDB(loadDB().filter(r => r.nombre !== nombre));
+  renderTablaPlantel();
+}
+
+function renderTablaPlantel(){
+  const db = loadDB();
+  const wrap = document.getElementById('tabla-planteles');
+  if(!db.length){
+    wrap.innerHTML='<div class="empty-state"><span style="font-size:2rem;">🏭</span><p>Aún no hay planteles registrados.</p></div>';
+    return;
+  }
+  const rows = db.map(r => `
+    <tr>
+      <td><strong>${r.nombre}</strong></td>
+      <td>${r.lat.toFixed(4)}</td>
+      <td>${r.lon.toFixed(4)}</td>
+      <td><span class="tipo-badge ${r.tipo}">${TYPE_LABEL[r.tipo]||r.tipo}</span></td>
+      <td style="color:var(--text3);font-size:12px;">${r.notas||'—'}</td>
+      <td>${r.fecha||'—'}</td>
+      <td><button class="del-btn" onclick="eliminarPlantel('${r.nombre.replace(/'/g,"\\'")}')">✕</button></td>
+    </tr>`).join('');
+  wrap.innerHTML=`
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Nombre</th><th>Lat</th><th>Lon</th><th>Tipo</th><th>Notas</th><th>Fecha</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  NAVEGACIÓN
+// ════════════════════════════════════════════════════════════════
+function showTab(tab){
+  ['eval','farms','met'].forEach(t => {
+    document.getElementById('tab-'+t).style.display = t===tab ? 'block' : 'none';
+    document.getElementById('nav-'+t).classList.toggle('active', t===tab);
+  });
+  if(tab==='farms') renderTablaPlantel();
+  if(tab==='eval'){ initMap(); setTimeout(()=>leafletMap?.invalidateSize(), 100); }
+}
+
+function mostrarApp(){
+  document.getElementById('pantalla-inicio').style.display='none';
+  document.getElementById('app').classList.add('visible');
+  initMap();
+  renderTablaPlantel();
+}
+</script>
+</body>
+</html>
