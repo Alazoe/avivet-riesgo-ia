@@ -172,6 +172,18 @@ table.data-table{width:100%;border-collapse:collapse;font-size:13px;}
 .met-item-icon{font-size:1.4rem;margin-bottom:8px;}
 .met-item-title{font-size:13px;font-weight:600;margin-bottom:6px;}
 .met-item-body{font-size:12px;color:var(--text2);line-height:1.5;}
+
+/* ══ RECOMENDACIÓN ══ */
+.resultado-rec{margin-top:14px;padding:12px 14px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);font-size:13px;line-height:1.5;}
+.resultado-rec strong{display:block;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
+
+/* ══ NAV MÓVIL ══ */
+.mobile-nav{display:none;}
+@media(max-width:700px){
+  .mobile-nav{display:flex;position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);z-index:200;flex-shrink:0;}
+  .mnav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;font-size:10px;font-weight:600;color:var(--text2);cursor:pointer;border-top:3px solid transparent;}
+  .mnav-item.active{color:var(--accent);border-top-color:var(--accent);background:var(--accent-l);}
+}
 </style>
 </head>
 <body>
@@ -290,6 +302,11 @@ table.data-table{width:100%;border-collapse:collapse;font-size:13px;}
                 <label class="form-label">Planteles industriales identificados visualmente <span style="font-weight:400;color:var(--text3);">(radio 5 km)</span></label>
                 <input type="number" class="form-input" id="inp-farms-manual" min="0" max="20" value="0">
                 <span class="form-hint">Planteles detectados en Google Earth / conocimiento local no registrados en la base de datos</span>
+              </div>
+              <div class="form-group" style="margin-bottom:14px;">
+                <label class="form-label">Fecha de evaluación</label>
+                <input type="date" class="form-input" id="inp-fecha">
+                <span class="form-hint">La estación del año pondera hasta 3 pts (verano austral = mayor riesgo)</span>
               </div>
               <button class="btn-primary" id="btn-calcular" onclick="calcular()">
                 <span id="btn-txt">⚡ Calcular riesgo</span>
@@ -436,6 +453,13 @@ table.data-table{width:100%;border-collapse:collapse;font-size:13px;}
 
     </div><!-- /content -->
   </div><!-- /layout -->
+
+  <!-- Navegación móvil -->
+  <nav class="mobile-nav">
+    <div class="mnav-item active" id="mnav-eval" onclick="showTab('eval')"><span style="font-size:18px;">🗺️</span><span>Evaluación</span></div>
+    <div class="mnav-item" id="mnav-farms" onclick="showTab('farms')"><span style="font-size:18px;">🏭</span><span>Planteles</span></div>
+    <div class="mnav-item" id="mnav-met" onclick="showTab('met')"><span style="font-size:18px;">📋</span><span>Metodología</span></div>
+  </nav>
 </div><!-- /app -->
 
 <script>
@@ -447,10 +471,10 @@ const RADIUS_SEARCH_M = 6000;
 const FARM_RADIUS_KM  = 5.0;
 
 const TIER_CONFIG = {
-  bajo:  { label:'BAJO',     emoji:'🟢', pts:[0,3],  cls:'bajo',  color:'#2ECC71' },
-  medio: { label:'MEDIO',    emoji:'🟡', pts:[4,6],  cls:'medio', color:'#d4a017' },
-  alto:  { label:'ALTO',     emoji:'🟠', pts:[7,9],  cls:'alto',  color:'#E67E22' },
-  muy:   { label:'MUY ALTO', emoji:'🔴', pts:[10,12],cls:'muy',   color:'#E74C3C' },
+  bajo:  { label:'BAJO',     emoji:'🟢', pts:[0,3],  cls:'bajo',  color:'#2ECC71', rec:'Vigilancia rutinaria. Mantener registro de mortalidad y bioseguridad básica.' },
+  medio: { label:'MEDIO',    emoji:'🟡', pts:[4,6],  cls:'medio', color:'#d4a017', rec:'Reforzar bioseguridad. Registro quincenal de mortalidad y signología; controlar acceso de personas y vehículos.' },
+  alto:  { label:'ALTO',     emoji:'🟠', pts:[7,9],  cls:'alto',  color:'#E67E22', rec:'Plan de contingencia activo. Notificar al SAG ante cualquier mortalidad anómala; restringir contacto con aves silvestres y cuerpos de agua.' },
+  muy:   { label:'MUY ALTO', emoji:'🔴', pts:[10,12],cls:'muy',   color:'#E74C3C', rec:'Alerta máxima. Evaluación presencial urgente, refuerzo inmediato de bioseguridad y coordinación con SAG.' },
 };
 
 const TYPE_PTS = { acuaticas:3, freerange:2, confinado:1, traspatio:0 };
@@ -474,8 +498,8 @@ function waterPts(km){
   return 0;
 }
 function farmsPts(n){ return n >= 2 ? 3 : n === 1 ? 2 : 0; }
-function seasonPts(){
-  const m = new Date().getMonth() + 1;
+function seasonPts(d){
+  const m = (d || new Date()).getMonth() + 1;
   if([11,12,1,2,3].includes(m)) return 3;
   if([4,5,6].includes(m))       return 2;
   return 1;
@@ -501,23 +525,62 @@ function haversine(lat1, lon1, lat2, lon2){
 // ════════════════════════════════════════════════════════════════
 //  OVERPASS API
 // ════════════════════════════════════════════════════════════════
-async function fetchWater(lat, lon){
-  const q = `[out:json][timeout:25];
-(
-  way["natural"="water"](around:${RADIUS_SEARCH_M},${lat},${lon});
-  way["natural"="wetland"](around:${RADIUS_SEARCH_M},${lat},${lon});
-  way["waterway"="river"](around:${RADIUS_SEARCH_M},${lat},${lon});
-  way["waterway"="stream"](around:${RADIUS_SEARCH_M},${lat},${lon});
-  relation["natural"="water"](around:${RADIUS_SEARCH_M},${lat},${lon});
-  node["natural"="water"](around:${RADIUS_SEARCH_M},${lat},${lon});
-);
-out center tags;`;
+// Etiquetas OSM consideradas "agua relevante para IA".
+// Se consulta way + relation + node para CADA etiqueta: los humedales y lagos
+// grandes (ej. Santuario Río Cruces) se mapean como relación multipolígono y se
+// perderían si solo se pidiera 'relation natural=water'.
+const WATER_TAGS = [
+  '["natural"="water"]',
+  '["natural"="wetland"]',
+  '["waterway"="river"]',
+  '["waterway"="stream"]',
+  '["landuse"="reservoir"]',
+];
 
-  const resp = await fetch('https://overpass-api.de/api/interpreter', {
-    method:'POST', body: new URLSearchParams({data: q})
-  });
-  if(!resp.ok) throw new Error('Overpass error');
-  const data = await resp.json();
+const OVERPASS_ENDPOINTS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+];
+
+const OVERPASS_TIMEOUT_MS = 30000;
+const OVERPASS_MAX_PASSES = 2;   // rondas completas sobre la lista de endpoints
+const OVERPASS_RETRY_MS   = 1500; // espera entre rondas (overpass-api.de solo da 2 slots)
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function overpassFetch(query){
+  let lastErr;
+  for(let pass = 0; pass < OVERPASS_MAX_PASSES; pass++){
+    for(const url of OVERPASS_ENDPOINTS){
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), OVERPASS_TIMEOUT_MS);
+      try{
+        const resp = await fetch(url, {
+          method:'POST', body: new URLSearchParams({data: query}), signal: ctrl.signal,
+        });
+        clearTimeout(timer);
+        if(!resp.ok) throw new Error('HTTP ' + resp.status);  // 429/504 = ocupado → probar otro
+        return await resp.json();
+      } catch(e){
+        clearTimeout(timer);
+        lastErr = e;  // probar siguiente endpoint
+      }
+    }
+    if(pass < OVERPASS_MAX_PASSES - 1) await sleep(OVERPASS_RETRY_MS);  // esperar y reintentar
+  }
+  throw lastErr || new Error('Overpass no disponible');
+}
+
+async function fetchWater(lat, lon){
+  const parts = [];
+  for(const tag of WATER_TAGS){
+    parts.push(`  way${tag}(around:${RADIUS_SEARCH_M},${lat},${lon});`);
+    parts.push(`  relation${tag}(around:${RADIUS_SEARCH_M},${lat},${lon});`);
+    parts.push(`  node${tag}(around:${RADIUS_SEARCH_M},${lat},${lon});`);
+  }
+  const q = `[out:json][timeout:25];\n(\n${parts.join('\n')}\n);\nout center tags;`;
+
+  const data = await overpassFetch(q);
 
   const features = [];
   for(const el of data.elements || []){
@@ -528,7 +591,7 @@ out center tags;`;
     const tags = el.tags || {};
     features.push({
       lat: clat, lon: clon,
-      type: tags.natural || tags.waterway || 'water',
+      type: tags.natural || tags.waterway || tags.landuse || 'water',
       name: tags.name || ''
     });
   }
@@ -609,11 +672,11 @@ function renderMap(lat, lon, tier, waterFeatures, dbFarms){
 // ════════════════════════════════════════════════════════════════
 //  RENDER RESULTADO
 // ════════════════════════════════════════════════════════════════
-function renderResultado(tier, breakdown, waterDist, dbCount, manualCount){
+function renderResultado(tier, breakdown, waterDist, dbCount, manualCount, fecha, osmOk){
   const factors = [
-    { label:'💧 Distancia a agua',          pts: breakdown.water,  max:3, detail: waterDist < 99 ? `${waterDist.toFixed(2)} km` : '>6 km' },
+    { label:'💧 Distancia a agua',          pts: breakdown.water,  max:3, detail: !osmOk ? 'sin datos OSM' : (waterDist < 99 ? `${waterDist.toFixed(2)} km` : '>6 km') },
     { label:'🏭 Planteles cercanos',         pts: breakdown.farms,  max:3, detail: `${dbCount+manualCount} detectados` },
-    { label:'📅 Estación del año',           pts: breakdown.season, max:3, detail: seasonLabel() },
+    { label:'📅 Estación del año',           pts: breakdown.season, max:3, detail: seasonLabel(fecha) },
     { label:'🐔 Tipo de producción propia',  pts: breakdown.type,   max:3, detail: TYPE_LABEL[document.getElementById('inp-tipo').value] },
   ];
 
@@ -626,7 +689,11 @@ function renderResultado(tier, breakdown, waterDist, dbCount, manualCount){
       <td><div class="bar-wrap"><div class="bar-bg"><div class="bar-fill" style="width:${f.pts/f.max*100}%;background:${barColor(f.pts,f.max)};"></div></div></div></td>
     </tr>`).join('');
 
-  const today = new Date().toLocaleDateString('es-CL');
+  const fechaTxt = (fecha || new Date()).toLocaleDateString('es-CL');
+  const osmWarn = osmOk ? '' :
+    `<div class="resultado-rec" style="background:var(--red-l);border-color:#f5c6c2;color:var(--red);">
+       <strong>⚠ Sin datos de agua</strong>No se pudo consultar OpenStreetMap; el factor «distancia a agua» quedó en 0 pts. El riesgo real puede ser mayor.
+     </div>`;
 
   document.getElementById('resultado-wrap').style.display = 'block';
   document.getElementById('resultado-wrap').innerHTML = `
@@ -635,7 +702,7 @@ function renderResultado(tier, breakdown, waterDist, dbCount, manualCount){
         <div class="resultado-emoji">${tier.emoji}</div>
         <div>
           <div class="resultado-label">RIESGO ${tier.label}</div>
-          <div class="resultado-date">Evaluado ${today}</div>
+          <div class="resultado-date">Evaluado ${fechaTxt}</div>
         </div>
         <div class="resultado-score">${tier.total}/12</div>
       </div>
@@ -643,11 +710,13 @@ function renderResultado(tier, breakdown, waterDist, dbCount, manualCount){
         <thead><tr><th>Factor</th><th>Detalle</th><th>Pts</th><th>Nivel</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
+      <div class="resultado-rec"><strong>Recomendación</strong>${tier.rec}</div>
+      ${osmWarn}
     </div>`;
 }
 
-function seasonLabel(){
-  const m = new Date().getMonth()+1;
+function seasonLabel(d){
+  const m = (d || new Date()).getMonth()+1;
   if([11,12,1,2,3].includes(m)) return 'Verano austral';
   if([4,5,6].includes(m))       return 'Otoño austral';
   return 'Invierno/primavera';
@@ -661,6 +730,8 @@ async function calcular(){
   const lon  = parseFloat(document.getElementById('inp-lon').value);
   const tipo = document.getElementById('inp-tipo').value;
   const manualFarms = parseInt(document.getElementById('inp-farms-manual').value) || 0;
+  const fechaStr = document.getElementById('inp-fecha').value;
+  const fecha = fechaStr ? new Date(fechaStr + 'T00:00:00') : new Date();
 
   if(isNaN(lat)||isNaN(lon)){ alert('Ingresa coordenadas válidas.'); return; }
   if(lat < -90||lat > 90||lon < -180||lon > 180){ alert('Coordenadas fuera de rango.'); return; }
@@ -670,6 +741,7 @@ async function calcular(){
 
   let waterFeatures = [];
   let nearestKm = 6.0;
+  let osmOk = true;
 
   try{
     waterFeatures = await fetchWater(lat, lon);
@@ -678,6 +750,7 @@ async function calcular(){
   } catch(e){
     setOsmStatus('error','Sin conexión OSM');
     nearestKm = 6.0;
+    osmOk = false;
   }
 
   const dbNearby = nearbyFarms(lat, lon);
@@ -685,13 +758,13 @@ async function calcular(){
 
   const w = waterPts(nearestKm);
   const f = farmsPts(totalFarms);
-  const s = seasonPts();
+  const s = seasonPts(fecha);
   const t = typePts(tipo);
   const total = w + f + s + t;
   const tier = { ...getTier(total), total };
 
   renderMap(lat, lon, tier, waterFeatures, dbNearby);
-  renderResultado(tier, {water:w,farms:f,season:s,type:t}, nearestKm, dbNearby.length, manualFarms);
+  renderResultado(tier, {water:w,farms:f,season:s,type:t}, nearestKm, dbNearby.length, manualFarms, fecha, osmOk);
 
   setBtnLoading(false);
 }
@@ -773,6 +846,7 @@ function showTab(tab){
   ['eval','farms','met'].forEach(t => {
     document.getElementById('tab-'+t).style.display = t===tab ? 'block' : 'none';
     document.getElementById('nav-'+t).classList.toggle('active', t===tab);
+    document.getElementById('mnav-'+t).classList.toggle('active', t===tab);
   });
   if(tab==='farms') renderTablaPlantel();
   if(tab==='eval'){ initMap(); setTimeout(()=>leafletMap?.invalidateSize(), 100); }
@@ -782,8 +856,12 @@ function mostrarApp(){
   document.getElementById('pantalla-inicio').style.display='none';
   document.getElementById('app').classList.add('visible');
   initMap();
+  setTimeout(() => leafletMap?.invalidateSize(), 100);
   renderTablaPlantel();
 }
+
+// Fecha de evaluación por defecto = hoy
+document.getElementById('inp-fecha').value = new Date().toISOString().slice(0,10);
 </script>
 </body>
 </html>

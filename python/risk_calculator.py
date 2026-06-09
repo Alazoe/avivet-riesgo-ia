@@ -17,12 +17,16 @@ class FarmType(str, Enum):
     BACKYARD   = "Traspatio <50 aves"
 
 
-# Configuración de tiers: rango, color hex, color folium, emoji
+# Configuración de tiers: rango, color hex, color folium, emoji, recomendación
 TIERS = {
-    "BAJO":     {"range": (0, 3),  "color": "#2ECC71", "folium": "green",   "emoji": "🟢"},
-    "MEDIO":    {"range": (4, 6),  "color": "#F1C40F", "folium": "orange",  "emoji": "🟡"},
-    "ALTO":     {"range": (7, 9),  "color": "#E67E22", "folium": "red",     "emoji": "🟠"},
-    "MUY ALTO": {"range": (10, 12),"color": "#E74C3C", "folium": "darkred", "emoji": "🔴"},
+    "BAJO":     {"range": (0, 3),  "color": "#2ECC71", "folium": "green",   "emoji": "🟢",
+                 "rec": "Vigilancia rutinaria. Mantener registro de mortalidad y bioseguridad básica."},
+    "MEDIO":    {"range": (4, 6),  "color": "#F1C40F", "folium": "orange",  "emoji": "🟡",
+                 "rec": "Reforzar bioseguridad. Registro quincenal de mortalidad y signología; controlar acceso de personas y vehículos."},
+    "ALTO":     {"range": (7, 9),  "color": "#E67E22", "folium": "red",     "emoji": "🟠",
+                 "rec": "Plan de contingencia activo. Notificar al SAG ante cualquier mortalidad anómala; restringir contacto con aves silvestres y cuerpos de agua."},
+    "MUY ALTO": {"range": (10, 12),"color": "#E74C3C", "folium": "darkred", "emoji": "🔴",
+                 "rec": "Alerta máxima. Evaluación presencial urgente, refuerzo inmediato de bioseguridad y coordinación con SAG."},
 }
 
 
@@ -39,6 +43,7 @@ class RiskScore:
     tier_color:        str
     tier_folium_color: str
     tier_emoji:        str
+    tier_rec:          str
     eval_date:         date
 
     @property
@@ -83,12 +88,13 @@ def _type_pts(ft: FarmType) -> int:
     }[ft]
 
 
-def _tier_for(total: int) -> tuple[str, str, str, str]:
+def _tier_for(total: int) -> tuple[str, str, str, str, str]:
     for name, cfg in TIERS.items():
         lo, hi = cfg["range"]
         if lo <= total <= hi:
-            return name, cfg["color"], cfg["folium"], cfg["emoji"]
-    return "MUY ALTO", "#E74C3C", "darkred", "🔴"
+            return name, cfg["color"], cfg["folium"], cfg["emoji"], cfg["rec"]
+    muy = TIERS["MUY ALTO"]
+    return "MUY ALTO", muy["color"], muy["folium"], muy["emoji"], muy["rec"]
 
 
 # ── API pública ────────────────────────────────────────────────────────────────
@@ -105,7 +111,7 @@ def calculate_risk(
     s = _season_pts(d)
     t = _type_pts(farm_type)
     total = w + f + s + t
-    tier, color, folium_col, emoji = _tier_for(total)
+    tier, color, folium_col, emoji, rec = _tier_for(total)
 
     return RiskScore(
         water_distance_km=water_distance_km,
@@ -119,5 +125,6 @@ def calculate_risk(
         tier_color=color,
         tier_folium_color=folium_col,
         tier_emoji=emoji,
+        tier_rec=rec,
         eval_date=d,
     )

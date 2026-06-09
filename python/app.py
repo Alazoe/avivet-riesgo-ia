@@ -257,6 +257,20 @@ def page_evaluation(db: pd.DataFrame) -> None:
             st.write("")
             breakdown_table(score)
 
+            # Recomendación accionable según tier
+            st.markdown(
+                f"""
+                <div style="margin-top:14px;padding:12px 14px;border-radius:10px;
+                            background:#f0ede8;border:1px solid #ddd9d0;
+                            font-size:0.9rem;line-height:1.5;">
+                    <b style="display:block;font-size:0.72rem;color:#9a948c;
+                              text-transform:uppercase;letter-spacing:.5px;
+                              margin-bottom:4px;">Recomendación</b>{score.tier_rec}
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
             # Detalle agua
             if math.isfinite(res["nearest_km"]):
                 st.caption(

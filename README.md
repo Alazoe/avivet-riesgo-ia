@@ -11,9 +11,9 @@ Calcula un puntaje de riesgo (0–12 puntos) combinando cuatro factores epidemio
 | Factor | Puntaje máx. | Fundamento |
 |--------|:---:|---|
 | Distancia a cuerpos de agua | 3 | Yoo et al. 2021 — humedales como 33.78% del riesgo |
-| Planteles industriales en radio 5 km | 3 | Cárdenas et al. 2026 — OR 6.0 mismo tipo |
+| Planteles industriales en radio 5 km | 3 | Gkrinia et al. 2025 — OR 6.0 mismo tipo de granja |
 | Temporada del año (austral) | 3 | Jindal et al. 2026 — verano austral = pico global |
-| Tipo de producción | 3 | Gkrinia et al. 2025 — aves acuáticas factor crítico |
+| Tipo de producción | 3 | Yoo et al. 2021 — aves acuáticas/exterior, mayor contacto con silvestres |
 
 **Niveles de riesgo:**
 
@@ -67,8 +67,8 @@ Disponible en `http://localhost:8501`
 1. **Yoo et al. 2021** — Distancia a humedales como factor de riesgo (33.78% del puntaje predictivo)
 2. **Azat et al. 2024** — Análisis espacio-temporal H5N1 en Chile
 3. **Jindal et al. 2026** — Modelo ML global H5N1; verano austral como período de mayor riesgo
-4. **Cárdenas et al. 2026** — Red de planteles; retraso de 3 días → 4 planteles afectados; OR 6.0 mismo tipo de ave
-5. **Gkrinia et al. 2025** — Factores OR de bioseguridad; aves acuáticas como vector crítico
+4. **Cárdenas et al. 2026** — Red de planteles; retraso de 3 días → 4 planteles afectados, 10 días → 34
+5. **Gkrinia et al. 2025** — Revisión sistemática de factores OR de bioseguridad; OR 6.0 mismo tipo de granja
 
 ---
 
