@@ -34,11 +34,17 @@ Archivo: `index.html`
 
 - Sin servidor, funciona directamente en el navegador
 - Mapa interactivo con Leaflet.js
-- Cuerpos de agua desde OpenStreetMap (Overpass API)
+- **Cuerpos de agua automáticos** desde OpenStreetMap (Overpass API)
+- **Capa satelital** (Esri World Imagery) para identificar visualmente esteros, tranques y humedales que OSM no mapea
+- **Marcado manual de agua**: clic en el mapa para agregar cuerpos de agua que entran al cálculo de distancia (recálculo en vivo)
+- **Capa de brotes HPAI H5N1 Chile 2026** (SAG / WAHIS) precargada: planteles comerciales y humedales con aves silvestres positivas
+- **Registro de brotes propios** (comercial / traspatio / silvestre) guardados en `localStorage` y superpuestos a los oficiales
 - Base de datos de planteles en `localStorage`
 - Compatible con cualquier hosting estático
 
 **Uso:** Abrir `index.html` en el navegador o subir al servidor junto al resto del sitio AviVet.
+
+**En vivo:** [avivet.cl/avivet/riesgo-ia/](https://avivet.cl/avivet/riesgo-ia/)
 
 ---
 
@@ -69,6 +75,23 @@ Disponible en `http://localhost:8501`
 3. **Jindal et al. 2026** — Modelo ML global H5N1; verano austral como período de mayor riesgo
 4. **Cárdenas et al. 2026** — Red de planteles; retraso de 3 días → 4 planteles afectados, 10 días → 34
 5. **Gkrinia et al. 2025** — Revisión sistemática de factores OR de bioseguridad; OR 6.0 mismo tipo de granja
+
+---
+
+## Actualizar los brotes oficiales del mapa
+
+Los brotes precargados están en el arreglo `WAHIS_BROTES` dentro de `index.html`
+(fuente SAG / WAHIS). Para agregar o corregir uno, editar esa lista:
+
+```js
+{ lat:-41.4693, lon:-72.9424, tipo:'comercial', fecha:'20 may 2026',
+  region:'Los Lagos', detalle:'Plantel de postura, ~40.000 aves, comuna X' },
+```
+
+`tipo` puede ser `comercial`, `traspatio` o `silvestre`. No existe API pública de
+WAHIS (está tras Cloudflare y requiere token), por lo que la carga es manual.
+El usuario también puede registrar brotes desde la app (pestaña **Brotes IA**),
+que se guardan solo en su navegador (`localStorage`).
 
 ---
 
