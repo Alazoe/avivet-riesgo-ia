@@ -259,9 +259,9 @@ table.data-table{width:100%;border-collapse:collapse;font-size:13px;}
         <div style="background:#fde8e6;border:1px solid #f5b7b1;border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:flex-start;gap:12px;">
           <div style="font-size:20px;flex-shrink:0;">🚨</div>
           <div style="font-size:13px;line-height:1.6;">
-            <strong style="color:#922b21;">Alerta HPAI H5N1 activa — Chile (mayo 2026)</strong><br>
-            3 planteles comerciales confirmados (RM, Maule, Araucanía) · 9 regiones afectadas · Suspensión exportaciones avícolas vigente.
-            Los brotes están marcados en el mapa. <a href="https://www.sag.gob.cl" target="_blank" style="color:#922b21;">Ver SAG →</a>
+            <strong style="color:#922b21;">Influenza aviar H5N1 en Chile — 126 brotes 2023–2026 (WAHIS/OMSA)</strong><br>
+            Temporada 2026: brotes activos en <b>traspatio y aves silvestres</b> (Ñuble, Araucanía, Maule, Biobío).
+            Los grandes brotes comerciales (2023) están en el mapa como resueltos. <a href="https://www.sag.gob.cl" target="_blank" style="color:#922b21;">Ver SAG →</a>
           </div>
         </div>
 
@@ -322,7 +322,10 @@ table.data-table{width:100%;border-collapse:collapse;font-size:13px;}
           <div class="map-wrap">
             <div class="map-toolbar">
               <button class="btn-water" id="btn-water-mode" onclick="toggleWaterMode()">💧 Marcar agua manualmente</button>
-              <span class="hint">Cambia a 🛰️ Satélite (arriba a la derecha) para ver esteros, tranques y humedales que OSM no tiene.</span>
+              <label class="hint" style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;">
+                <input type="checkbox" id="chk-resueltos" checked onchange="toggleResueltos()"> Mostrar brotes resueltos (2023)
+              </label>
+              <span class="hint">· Cambia a 🛰️ Satélite (arriba a la derecha) para identificar cuerpos de agua.</span>
               <span class="hint" id="manual-water-info" style="display:none;">· <b id="manual-water-count">0</b> marcados <button class="link-btn" onclick="limpiarAguaManual()">limpiar</button></span>
             </div>
             <div id="map"></div>
@@ -333,9 +336,10 @@ table.data-table{width:100%;border-collapse:collapse;font-size:13px;}
               <div class="legend-item"><div class="legend-dot" style="background:#5DADE2;"></div>Agua (OSM)</div>
               <div class="legend-item"><div class="legend-dot" style="background:#22d3ee;border:1px solid #0e7490;"></div>Agua marcada</div>
               <div class="legend-item"><div class="legend-dot" style="background:#7f8c8d;"></div>Plantel registrado</div>
-              <div class="legend-item" style="border-top:1px solid var(--border);padding-top:5px;margin-top:3px;"><div class="legend-dot" style="background:#c0392b;animation:blink 1.4s ease-in-out infinite;"></div>Brote comercial</div>
+              <div class="legend-item" style="border-top:1px solid var(--border);padding-top:5px;margin-top:3px;"><div class="legend-dot" style="background:#c0392b;"></div>Comercial</div>
               <div class="legend-item"><div class="legend-dot" style="background:#E67E22;"></div>Traspatio</div>
-              <div class="legend-item"><div class="legend-dot" style="background:#1A6EBF;"></div>Silvestre +</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#1A6EBF;"></div>Silvestre</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#7f8c8d;opacity:.45;"></div>Resuelto (atenuado)</div>
             </div>
           </div>
         </div>
@@ -549,19 +553,135 @@ const TYPE_LABEL = {
   traspatio:'Traspatio'
 };
 
-// Brotes HPAI H5N1 Chile 2026 — fuente: SAG / WAHIS (actualizado 21-may-2026)
+// Brotes de Influenza Aviar (H5N1 HPAI) en Chile — fuente: WAHIS/OMSA (export oficial)
+// 126 eventos 2023–2026 · clasificados por categoría y nº de aves (comercial ≥1.000) · resuelto=cerrado por SAG
 const WAHIS_BROTES = [
-  // Planteles comerciales confirmados
-  { lat:-33.670, lon:-70.930, tipo:'comercial', fecha:'24 mar 2026', region:'Metropolitana',  detalle:'Plantel postura ~700.000 aves · Talagante / El Monte' },
-  { lat:-35.540, lon:-71.530, tipo:'comercial', fecha:'29 mar 2026', region:'Maule',           detalle:'Plantel comercial · San Rafael (Talca)' },
-  { lat:-38.930, lon:-72.030, tipo:'comercial', fecha:'17 abr 2026', region:'La Araucanía',    detalle:'Avícola Huichahue · ~120.000 ponedoras · Cunco' },
-  // Humedales con aves silvestres positivas
-  { lat:-33.750, lon:-71.650, tipo:'silvestre', fecha:'4 mar 2026',  region:'Valparaíso',      detalle:'Humedal El Yali · Cisne coscoroba' },
-  { lat:-37.230, lon:-73.400, tipo:'silvestre', fecha:'13 abr 2026', region:'Biobío',          detalle:'Humedal de Arauco · Cisne cuello negro' },
-  { lat:-39.600, lon:-73.100, tipo:'silvestre', fecha:'13 abr 2026', region:'Los Ríos',        detalle:'Río Cudico, Mariquina · Cisne cuello negro' },
-  { lat:-39.650, lon:-73.170, tipo:'silvestre', fecha:'abr 2026',    region:'Los Ríos',        detalle:'Santuario Carlos Anwandter, Valdivia · 137+ cisnes' },
-  { lat:-38.870, lon:-73.220, tipo:'silvestre', fecha:'may 2026',    region:'La Araucanía',    detalle:'Lago Budi · 128 cisnes cuello negro' },
-  { lat:-42.000, lon:-73.650, tipo:'silvestre', fecha:'may 2026',    region:'Los Lagos',       detalle:'Ancud / Curaco de Vélez · Pato quetro y cisnes' },
+  { lat:-36.3886, lon:-71.8413, tipo:'traspatio', fecha:'4 may 2026', region:'Ñuble-Comuna de Ñiquen ', detalle:'4 aves · Birds', resuelto:false },
+  { lat:-38.3117, lon:-72.3416, tipo:'traspatio', fecha:'22 abr 2026', region:'Araucanía-Comuna Victoria', detalle:'109 aves · Birds', resuelto:false },
+  { lat:-39.4807, lon:-72.3822, tipo:'silvestre', fecha:'20 abr 2026', region:'Araucanía-Comuna de Loncoche', detalle:'3 aves · Cygnus melancoryphus', resuelto:false },
+  { lat:-36.7898, lon:-73.1032, tipo:'silvestre', fecha:'12 abr 2026', region:'Región del Bío.BíoComuna de Talcahuano', detalle:'1 aves · Coscoroba coscoroba', resuelto:true },
+  { lat:-38.8914, lon:-73.3666, tipo:'silvestre', fecha:'10 abr 2026', region:'Araucanía-Lago Budí', detalle:'230 aves · Cygnus melancoryphus', resuelto:false },
+  { lat:-38.9103, lon:-72.3121, tipo:'comercial', fecha:'10 abr 2026', region:'Cunco', detalle:'26.897 aves · Birds', resuelto:true },
+  { lat:-36.8844, lon:-71.8846, tipo:'traspatio', fecha:'8 abr 2026', region:'Ñuble-Diguillin- Comuna de Pinto', detalle:'1 aves · Birds', resuelto:false },
+  { lat:-38.6269, lon:-72.7866, tipo:'traspatio', fecha:'8 abr 2026', region:'COMUNA DE GALVARINO DE LA ARAUCANIA', detalle:'8 aves · Birds', resuelto:false },
+  { lat:-37.2925, lon:-73.2991, tipo:'silvestre', fecha:'7 abr 2026', region:'Bío Bío Desembocadura Río Carampagne', detalle:'1 aves · Cygnus melancoryphus', resuelto:false },
+  { lat:-36.9553, lon:-72.263, tipo:'traspatio', fecha:'6 abr 2026', region:'Ñuble_Diguillin_Bulnes', detalle:'1 aves · Birds', resuelto:false },
+  { lat:-39.7019, lon:-73.184, tipo:'silvestre', fecha:'4 abr 2026', region:'Los Ríos - Santuario de la Naturaleza Carlos Anwanter', detalle:'1 aves · Cygnus melancoryphus', resuelto:true },
+  { lat:-36.4497, lon:-71.9114, tipo:'traspatio', fecha:'3 abr 2026', region:'Ñuble_Provincia de Punilla_comuna San Carlos', detalle:'1 aves · Birds', resuelto:false },
+  { lat:-36.5949, lon:-72.017, tipo:'traspatio', fecha:'31 mar 2026', region:'Ñuble_Comuna de San Carlos', detalle:'16 aves · Birds', resuelto:false },
+  { lat:-36.11, lon:-71.8149, tipo:'traspatio', fecha:'25 mar 2026', region:'Maule-Linares', detalle:'9 aves · Birds', resuelto:false },
+  { lat:-37.7033, lon:-72.5919, tipo:'traspatio', fecha:'18 mar 2026', region:'Araucanía ', detalle:'77 aves · Birds', resuelto:false },
+  { lat:-39.2601, lon:-73.2209, tipo:'silvestre', fecha:'14 dic 2023', region:'Playa Nigue Norte', detalle:'1 aves · Pelecanus thagus', resuelto:true },
+  { lat:-43.1328, lon:-73.6249, tipo:'silvestre', fecha:'4 dic 2023', region:'Punta de Lapa', detalle:'1 aves · Leucocarbo atriceps', resuelto:true },
+  { lat:-43.1385, lon:-73.6456, tipo:'silvestre', fecha:'4 dic 2023', region:'Punta de Lapas', detalle:'1 aves · Leucocarbo atriceps', resuelto:true },
+  { lat:-42.9022, lon:-73.485, tipo:'silvestre', fecha:'29 nov 2023', region:'Puntilla Queilen', detalle:'1 aves · Leucocarbo atriceps', resuelto:true },
+  { lat:-36.0932, lon:-72.8119, tipo:'silvestre', fecha:'29 sep 2023', region:'Playa Iglesia de Piedra', detalle:'1 aves · Haematopus ater', resuelto:true },
+  { lat:-42.9708, lon:-72.734, tipo:'traspatio', fecha:'8 sep 2023', region:'Chaitén Viejo', detalle:'80 aves · Birds', resuelto:true },
+  { lat:-36.484, lon:-72.1038, tipo:'traspatio', fecha:'5 sep 2023', region:'Los Aromos', detalle:'38 aves · Birds', resuelto:true },
+  { lat:-44.7461, lon:-72.6979, tipo:'silvestre', fecha:'17 ago 2023', region:'Playa Las Truchas', detalle:'1 aves · Pelecanus thagus', resuelto:true },
+  { lat:-40.4735, lon:-73.0, tipo:'traspatio', fecha:'4 ago 2023', region:'Trecaimo', detalle:'10 aves · Birds', resuelto:true },
+  { lat:-36.2828, lon:-72.8118, tipo:'silvestre', fecha:'23 jul 2023', region:'Playa Colmuyao', detalle:'1 aves · Stercorarius chilensis', resuelto:true },
+  { lat:-38.697, lon:-73.3516, tipo:'silvestre', fecha:'13 jul 2023', region:'Tranapuente', detalle:'1 aves · Cygnus melancoryphus', resuelto:true },
+  { lat:-39.7187, lon:-73.4045, tipo:'silvestre', fecha:'5 jul 2023', region:'Playa Curiñanco', detalle:'2 aves · Phalacrocorax bougainvillii +1', resuelto:true },
+  { lat:-35.957, lon:-72.7505, tipo:'traspatio', fecha:'3 jul 2023', region:'Tregualemu', detalle:'26 aves · Birds', resuelto:true },
+  { lat:-39.9016, lon:-73.3379, tipo:'silvestre', fecha:'28 jun 2023', region:'Corral', detalle:'1 aves · Sterna hirundinacea', resuelto:true },
+  { lat:-39.7179, lon:-72.2584, tipo:'traspatio', fecha:'27 jun 2023', region:'Playa Coz Coz', detalle:'20 aves · Birds', resuelto:true },
+  { lat:-37.6259, lon:-72.5995, tipo:'traspatio', fecha:'23 jun 2023', region:'Parcela 17', detalle:'36 aves · Birds', resuelto:true },
+  { lat:-42.6192, lon:-73.4313, tipo:'traspatio', fecha:'19 jun 2023', region:'Peldehue', detalle:'67 aves · Birds', resuelto:true },
+  { lat:-42.3311, lon:-73.248, tipo:'traspatio', fecha:'18 jun 2023', region:'Isla Añihue', detalle:'12 aves · Birds', resuelto:true },
+  { lat:-42.4584, lon:-73.3293, tipo:'traspatio', fecha:'14 jun 2023', region:'Quinchao', detalle:'6 aves · Birds', resuelto:true },
+  { lat:-39.2181, lon:-72.1992, tipo:'silvestre', fecha:'13 jun 2023', region:'Fundo Copihual', detalle:'9 aves · Chloephaga picta +2', resuelto:true },
+  { lat:-43.7737, lon:-72.955, tipo:'silvestre', fecha:'12 jun 2023', region:'Ministro Palma', detalle:'1 aves · Falco peregrinus', resuelto:true },
+  { lat:-45.7025, lon:-72.0982, tipo:'traspatio', fecha:'12 jun 2023', region:'Valle Simpson', detalle:'18 aves · Birds', resuelto:true },
+  { lat:-42.884, lon:-73.5504, tipo:'traspatio', fecha:'9 jun 2023', region:'Quichu', detalle:'39 aves · Birds', resuelto:true },
+  { lat:-43.8817, lon:-73.887, tipo:'silvestre', fecha:'6 jun 2023', region:'Playa Repollal', detalle:'1 aves · Otaria flavescens', resuelto:true },
+  { lat:-39.8488, lon:-73.3916, tipo:'silvestre', fecha:'4 jun 2023', region:'Playa Los Molinos', detalle:'2 aves · Chroicocephalus maculipennis +1', resuelto:true },
+  { lat:-45.4647, lon:-72.8237, tipo:'silvestre', fecha:'25 may 2023', region:'Puerto Oxxean', detalle:'1 aves · Otaria flavescens', resuelto:true },
+  { lat:-42.7563, lon:-73.5624, tipo:'traspatio', fecha:'22 may 2023', region:'Playa Agoni', detalle:'4 aves · Birds', resuelto:true },
+  { lat:-40.7981, lon:-73.0184, tipo:'traspatio', fecha:'19 may 2023', region:'Cau Cau', detalle:'50 aves · Birds', resuelto:true },
+  { lat:-37.1927, lon:-73.5651, tipo:'silvestre', fecha:'12 may 2023', region:'SPU Playa Llico', detalle:'15 aves · Larus dominicanus +2', resuelto:true },
+  { lat:-36.1566, lon:-71.742, tipo:'traspatio', fecha:'8 may 2023', region:'Poblacion El Ajial', detalle:'3 aves · Birds', resuelto:true },
+  { lat:-37.5095, lon:-72.0, tipo:'traspatio', fecha:'6 may 2023', region:'Fundo Lubeca', detalle:'13 aves · Birds', resuelto:true },
+  { lat:-41.5043, lon:-72.7998, tipo:'silvestre', fecha:'6 may 2023', region:'Sector Piedra Azul', detalle:'2 aves · Cygnus melancoryphus', resuelto:true },
+  { lat:-45.6372, lon:-72.8159, tipo:'traspatio', fecha:'6 may 2023', region:'Sector Escuela', detalle:'6 aves · Birds', resuelto:true },
+  { lat:-42.5993, lon:-73.6753, tipo:'traspatio', fecha:'5 may 2023', region:'Los Carrera', detalle:'10 aves · Birds', resuelto:true },
+  { lat:-45.2672, lon:-71.7152, tipo:'traspatio', fecha:'5 may 2023', region:'Calle Santiago Bueras', detalle:'5 aves · Birds', resuelto:true },
+  { lat:-39.5892, lon:-72.3439, tipo:'silvestre', fecha:'4 may 2023', region:'Cultruncahue', detalle:'3 aves · Enicognathus leptorhynchus', resuelto:true },
+  { lat:-41.2729, lon:-73.3098, tipo:'traspatio', fecha:'29 abr 2023', region:'Callejón Predio El Gallo', detalle:'2 aves · Birds', resuelto:true },
+  { lat:-42.6091, lon:-73.268, tipo:'traspatio', fecha:'28 abr 2023', region:'Sector Apao', detalle:'8 aves · Birds', resuelto:true },
+  { lat:-41.8244, lon:-73.6352, tipo:'silvestre', fecha:'25 abr 2023', region:'Bahía Caulin', detalle:'1 aves · Otaria flavescens', resuelto:true },
+  { lat:-42.9116, lon:-72.7182, tipo:'silvestre', fecha:'25 abr 2023', region:'Chaiten', detalle:'1 aves · Otaria flavescens', resuelto:true },
+  { lat:-36.9504, lon:-72.4811, tipo:'traspatio', fecha:'24 abr 2023', region:'Hijuela El Peral', detalle:'20 aves · Birds', resuelto:true },
+  { lat:-36.2243, lon:-71.5686, tipo:'traspatio', fecha:'24 abr 2023', region:'Vista Flor', detalle:'31 aves · Birds', resuelto:true },
+  { lat:-41.3134, lon:-73.0783, tipo:'traspatio', fecha:'23 abr 2023', region:'Fundo San Carlos', detalle:'58 aves · Birds', resuelto:true },
+  { lat:-45.7544, lon:-72.1266, tipo:'traspatio', fecha:'23 abr 2023', region:'Arroyo El Arco', detalle:'85 aves · Chloephaga picta', resuelto:true },
+  { lat:-41.8669, lon:-74.0192, tipo:'silvestre', fecha:'21 abr 2023', region:'Playa Polucue', detalle:'1 aves · Otaria flavescens', resuelto:true },
+  { lat:-41.7446, lon:-73.7366, tipo:'silvestre', fecha:'20 abr 2023', region:'Playa Ventanas', detalle:'1 aves · Otaria flavescens', resuelto:true },
+  { lat:-41.7794, lon:-73.5243, tipo:'silvestre', fecha:'20 abr 2023', region:'Sector Colaco', detalle:'2 aves · Chroicocephalus maculipennis +1', resuelto:true },
+  { lat:-36.79, lon:-72.7346, tipo:'traspatio', fecha:'19 abr 2023', region:'Agrochequen', detalle:'11 aves · Milvago chimango +2', resuelto:true },
+  { lat:-38.8761, lon:-72.696, tipo:'traspatio', fecha:'19 abr 2023', region:'Sector Millelche', detalle:'10 aves · Birds', resuelto:true },
+  { lat:-40.8635, lon:-73.322, tipo:'traspatio', fecha:'19 abr 2023', region:'La Mosqueta', detalle:'89 aves · Birds', resuelto:true },
+  { lat:-38.11, lon:-72.7935, tipo:'traspatio', fecha:'17 abr 2023', region:'Santa Juana', detalle:'12 aves · Birds', resuelto:true },
+  { lat:-45.9059, lon:-71.7054, tipo:'traspatio', fecha:'17 abr 2023', region:'Fundo La Golondrina', detalle:'6 aves · Chloephaga picta', resuelto:true },
+  { lat:-36.8093, lon:-72.7177, tipo:'comercial', fecha:'15 abr 2023', region:'Fundo Tarapaca', detalle:'371.714 aves · Birds', resuelto:true },
+  { lat:-36.4282, lon:-72.4749, tipo:'silvestre', fecha:'13 abr 2023', region:'Sector Reloca', detalle:'1 aves · Larus dominicanus', resuelto:true },
+  { lat:-42.7113, lon:-73.8044, tipo:'silvestre', fecha:'11 abr 2023', region:'Bahía Pumalin', detalle:'4 aves · Cygnus melancoryphus', resuelto:true },
+  { lat:-39.2777, lon:-73.1928, tipo:'traspatio', fecha:'10 abr 2023', region:'Parcela Los Maitenes', detalle:'12 aves · Birds', resuelto:true },
+  { lat:-42.4996, lon:-73.779, tipo:'silvestre', fecha:'10 abr 2023', region:'Balneario Ten Ten', detalle:'4 aves · Coragyps atratus +1', resuelto:true },
+  { lat:-42.1652, lon:-73.4815, tipo:'traspatio', fecha:'9 abr 2023', region:'Bahia Aucar', detalle:'33 aves · Anas georgica +4', resuelto:true },
+  { lat:-41.8249, lon:-73.6355, tipo:'silvestre', fecha:'9 abr 2023', region:'Bahía Caulin', detalle:'3 aves · Cygnus melancoryphus +1', resuelto:true },
+  { lat:-37.4635, lon:-72.512, tipo:'silvestre', fecha:'7 abr 2023', region:'Fundo Virquenco', detalle:'1 aves · Theristicus melanopis', resuelto:true },
+  { lat:-45.2328, lon:-72.728, tipo:'traspatio', fecha:'7 abr 2023', region:'Lote 70', detalle:'14 aves · Birds', resuelto:true },
+  { lat:-39.9446, lon:-73.3849, tipo:'traspatio', fecha:'5 abr 2023', region:'ZBCS.133.Los Rios.Playa Catrilelfu', detalle:'223 aves · Cygnus melancoryphus', resuelto:true },
+  { lat:-39.2946, lon:-72.1592, tipo:'traspatio', fecha:'5 abr 2023', region:'Los Arrayanes', detalle:'1 aves · Birds', resuelto:true },
+  { lat:-36.7609, lon:-73.1956, tipo:'silvestre', fecha:'4 abr 2023', region:'Caleta Perone', detalle:'1 aves · Otaria flavescens', resuelto:true },
+  { lat:-39.8872, lon:-73.4301, tipo:'silvestre', fecha:'4 abr 2023', region:'Playa Corral', detalle:'2 aves · Cygnus melancoryphus +1', resuelto:true },
+  { lat:-38.8286, lon:-73.3709, tipo:'traspatio', fecha:'4 abr 2023', region:'Puente Norte. Isla Huapi', detalle:'108 aves · Coturnix coturnix +1', resuelto:true },
+  { lat:-36.79, lon:-72.7346, tipo:'comercial', fecha:'3 abr 2023', region:'Criadero Fundo Chequen', detalle:'591.675 aves · Birds', resuelto:true },
+  { lat:-41.3297, lon:-73.2508, tipo:'silvestre', fecha:'1 abr 2023', region:'Ruta V50. Km 20. Los Loros', detalle:'24 aves · Enicognathus leptorhynchus', resuelto:true },
+  { lat:-42.4377, lon:-73.6038, tipo:'traspatio', fecha:'31 mar 2023', region:'Curaco de Velez', detalle:'45 aves · Cygnus melancoryphus +2', resuelto:true },
+  { lat:-40.8012, lon:-72.4332, tipo:'traspatio', fecha:'31 mar 2023', region:'Agricola San Jose', detalle:'1 aves · Birds', resuelto:true },
+  { lat:-37.6848, lon:-72.0195, tipo:'traspatio', fecha:'30 mar 2023', region:'Quilaco Viejo', detalle:'116 aves · Birds', resuelto:true },
+  { lat:-39.7019, lon:-73.1842, tipo:'silvestre', fecha:'28 mar 2023', region:'Santuario de la Naturaleza Carlos Anwandter', detalle:'34 aves · Anas flavirostris +5', resuelto:true },
+  { lat:-38.478, lon:-72.4982, tipo:'traspatio', fecha:'28 mar 2023', region:'Comunidad Canuleo Pinoleo 2', detalle:'144 aves · Birds', resuelto:true },
+  { lat:-36.1371, lon:-72.2691, tipo:'traspatio', fecha:'27 mar 2023', region:'Predio San Diego', detalle:'2 aves · Birds', resuelto:true },
+  { lat:-36.1337, lon:-72.2932, tipo:'traspatio', fecha:'26 mar 2023', region:'Predio San Juan', detalle:'2 aves · Birds', resuelto:true },
+  { lat:-37.5183, lon:-72.1254, tipo:'traspatio', fecha:'25 mar 2023', region:'Parcela San Luis', detalle:'15 aves · Birds', resuelto:true },
+  { lat:-38.6343, lon:-72.4582, tipo:'traspatio', fecha:'24 mar 2023', region:'Parcela Santa Elda', detalle:'11 aves · Birds', resuelto:true },
+  { lat:-38.7151, lon:-72.0934, tipo:'traspatio', fecha:'24 mar 2023', region:'Isla Locura', detalle:'49 aves · Cygnus melancoryphus', resuelto:true },
+  { lat:-36.7919, lon:-72.7386, tipo:'comercial', fecha:'22 mar 2023', region:'Fundo Chequen', detalle:'60.650 aves · Birds', resuelto:true },
+  { lat:-36.5616, lon:-72.0472, tipo:'traspatio', fecha:'22 mar 2023', region:'Parcela 14', detalle:'66 aves · Birds', resuelto:true },
+  { lat:-38.4363, lon:-72.8145, tipo:'silvestre', fecha:'22 mar 2023', region:'Comunidad Triftrifco', detalle:'1 aves · Vanellus chilensis', resuelto:true },
+  { lat:-36.2056, lon:-71.7897, tipo:'traspatio', fecha:'21 mar 2023', region:'Fuerte Viejo', detalle:'50 aves · Birds', resuelto:true },
+  { lat:-38.3641, lon:-72.267, tipo:'traspatio', fecha:'21 mar 2023', region:'Parcela 7', detalle:'3 aves · Birds', resuelto:true },
+  { lat:-41.5434, lon:-73.1119, tipo:'traspatio', fecha:'21 mar 2023', region:'SN', detalle:'56 aves · Birds', resuelto:true },
+  { lat:-36.5934, lon:-71.8645, tipo:'traspatio', fecha:'19 mar 2023', region:'Las Encinas', detalle:'18 aves · Birds', resuelto:true },
+  { lat:-38.4539, lon:-72.2853, tipo:'traspatio', fecha:'18 mar 2023', region:'Agua Fría', detalle:'10 aves · Birds', resuelto:true },
+  { lat:-36.956, lon:-73.167, tipo:'silvestre', fecha:'17 mar 2023', region:'SPU Playa Escudron', detalle:'1 aves · Otaria flavescens', resuelto:true },
+  { lat:-38.7407, lon:-72.6217, tipo:'silvestre', fecha:'17 mar 2023', region:'Zona urbana', detalle:'1 aves · Enicognathus leptorhynchus', resuelto:true },
+  { lat:-36.2442, lon:-71.9981, tipo:'traspatio', fecha:'15 mar 2023', region:'Sector Otingue', detalle:'10 aves · Birds', resuelto:true },
+  { lat:-40.5797, lon:-73.6675, tipo:'silvestre', fecha:'15 mar 2023', region:'Pocumo', detalle:'1 aves · Leucophaeus scoresbii', resuelto:true },
+  { lat:-37.4743, lon:-72.4791, tipo:'traspatio', fecha:'14 mar 2023', region:'Estación Candelaria', detalle:'175 aves · Birds', resuelto:true },
+  { lat:-36.4921, lon:-72.0338, tipo:'traspatio', fecha:'13 mar 2023', region:'Santa Isabel', detalle:'17 aves · Birds', resuelto:true },
+  { lat:-38.0142, lon:-73.0069, tipo:'traspatio', fecha:'11 mar 2023', region:'Tranaman', detalle:'11 aves · Birds', resuelto:true },
+  { lat:-38.4799, lon:-72.5048, tipo:'traspatio', fecha:'9 mar 2023', region:'Reducción Carilao', detalle:'100 aves · Birds', resuelto:true },
+  { lat:-38.389, lon:-72.7945, tipo:'traspatio', fecha:'6 mar 2023', region:'Hijuela La Envidia', detalle:'9 aves · Birds', resuelto:true },
+  { lat:-36.1771, lon:-71.9336, tipo:'traspatio', fecha:'4 mar 2023', region:'San Miguel', detalle:'156 aves · Birds', resuelto:true },
+  { lat:-38.2063, lon:-72.6826, tipo:'traspatio', fecha:'4 mar 2023', region:'Traiguen', detalle:'48 aves · Birds', resuelto:true },
+  { lat:-37.9242, lon:-72.7308, tipo:'traspatio', fecha:'2 mar 2023', region:'Villa Trintre', detalle:'15 aves · Birds', resuelto:true },
+  { lat:-38.7934, lon:-72.9758, tipo:'traspatio', fecha:'28 feb 2023', region:'Llancahuito', detalle:'17 aves · Egretta thula', resuelto:true },
+  { lat:-36.6761, lon:-72.2881, tipo:'comercial', fecha:'27 feb 2023', region:'Rucapequen, Chillan Viejo', detalle:'2.091 aves · Cygnus melancoryphus', resuelto:true },
+  { lat:-36.7368, lon:-72.9974, tipo:'silvestre', fecha:'26 feb 2023', region:'Playa Penco', detalle:'3 aves · Larus dominicanus +2', resuelto:true },
+  { lat:-38.2836, lon:-72.5071, tipo:'traspatio', fecha:'24 feb 2023', region:'Comunidad Pichipantano 2', detalle:'192 aves · Birds', resuelto:true },
+  { lat:-36.0304, lon:-72.7781, tipo:'silvestre', fecha:'15 feb 2023', region:'Playa Pullay', detalle:'1 aves · Pelecanus thagus', resuelto:true },
+  { lat:-37.1159, lon:-73.1522, tipo:'silvestre', fecha:'10 feb 2023', region:'SPR Playa Colcura', detalle:'1 aves · Pelecanus thagus', resuelto:true },
+  { lat:-36.1314, lon:-72.8051, tipo:'silvestre', fecha:'9 feb 2023', region:'Playa Loberia', detalle:'5 aves · Larus dominicanus +1', resuelto:true },
+  { lat:-36.5244, lon:-72.9322, tipo:'silvestre', fecha:'6 feb 2023', region:'Playa Coliumo', detalle:'12 aves · Larosterna inca +5', resuelto:true },
+  { lat:-36.4461, lon:-72.8823, tipo:'silvestre', fecha:'6 feb 2023', region:'Playa Purema - ZBCS_52', detalle:'1 aves · Pelecanus thagus', resuelto:true },
+  { lat:-36.807, lon:-73.1288, tipo:'silvestre', fecha:'3 feb 2023', region:'SPU Puente Industrial Hualpen', detalle:'30 aves · Coscoroba coscoroba +7', resuelto:true },
+  { lat:-36.2828, lon:-72.8111, tipo:'silvestre', fecha:'27 ene 2023', region:'Playa Colmuyao', detalle:'1 aves · Pelecanus thagus', resuelto:true },
+  { lat:-36.3193, lon:-72.8261, tipo:'traspatio', fecha:'26 ene 2023', region:'Humedal Boca Itata', detalle:'8 aves · Larus dominicanus +2', resuelto:true },
+  { lat:-41.8669, lon:-73.8293, tipo:'silvestre', fecha:'18 ene 2023', region:'Casa en centro de Ancud', detalle:'1 aves · Larus dominicanus', resuelto:true },
 ];
 
 let leafletMap  = null;
@@ -700,22 +820,33 @@ function getAllBrotes(){
   return oficiales.concat(loadBrotes());
 }
 
+let mostrarResueltos = true;
+
 function renderBrotes(){
   broteMarkers.forEach(m => leafletMap.removeLayer(m));
   broteMarkers = [];
   getAllBrotes().forEach(b => {
+    if(b.resuelto && !mostrarResueltos) return;
     const st = BROTE_STYLE[b.tipo] || BROTE_STYLE.silvestre;
-    const pulse = st.pulse ? 'animation:blink 1.4s ease-in-out infinite;' : '';
+    // Los resueltos van atenuados y sin pulso; los activos a todo color
+    const activo = !b.resuelto;
+    const pulse  = (st.pulse && activo) ? 'animation:blink 1.4s ease-in-out infinite;' : '';
+    const size   = activo ? st.size : Math.max(8, st.size - 5);
+    const op     = activo ? 1 : 0.45;
+    const border = activo ? '2.5px solid #fff' : '1.5px solid #fff';
     const icon  = L.divIcon({
       className:'',
-      html:`<div style="width:${st.size}px;height:${st.size}px;border-radius:50%;background:${st.color};border:2.5px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.45);${pulse}"></div>`,
-      iconAnchor:[st.size/2, st.size/2],
+      html:`<div style="width:${size}px;height:${size}px;border-radius:50%;background:${st.color};border:${border};box-shadow:0 1px 4px rgba(0,0,0,.4);opacity:${op};${pulse}"></div>`,
+      iconAnchor:[size/2, size/2],
     });
-    const popup = L.popup({ maxWidth:220 }).setContent(`
+    const estadoTxt = b.resuelto
+      ? '<span style="color:#888;">✓ Resuelto</span>'
+      : '<span style="color:#c0392b;font-weight:700;">● Activo</span>';
+    const popup = L.popup({ maxWidth:230 }).setContent(`
       <div style="font-family:'DM Sans',sans-serif;font-size:13px;line-height:1.6;">
         <div style="font-weight:700;color:${st.color};margin-bottom:3px;">${st.emoji} ${st.label}</div>
-        <div><b>Región:</b> ${b.region}</div>
-        <div><b>Fecha:</b> ${b.fecha}</div>
+        <div><b>Ubicación:</b> ${b.region}</div>
+        <div><b>Fecha:</b> ${b.fecha} · ${estadoTxt}</div>
         <div style="margin-top:4px;font-size:11.5px;color:#555;">${b.detalle||''}</div>
         <div style="margin-top:5px;font-size:10px;color:#aaa;border-top:1px solid #eee;padding-top:4px;">Fuente: ${b.fuente||'Registro propio'}</div>
       </div>`);
@@ -723,6 +854,11 @@ function renderBrotes(){
     m.addTo(leafletMap);
     broteMarkers.push(m);
   });
+}
+
+function toggleResueltos(){
+  mostrarResueltos = document.getElementById('chk-resueltos').checked;
+  if(leafletMap) renderBrotes();
 }
 
 // ── Agua manual (identificación satelital) ─────────────────────────
