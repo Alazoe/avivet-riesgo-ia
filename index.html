@@ -269,7 +269,7 @@ table.data-table{width:100%;border-collapse:collapse;font-size:13px;}
           <div class="section-icon">🗺️</div>
           <div>
             <div class="section-title">Evaluación de riesgo</div>
-            <div class="section-meta">Escala 0–12 pts · 4 factores · Datos OSM en tiempo real</div>
+            <div class="section-meta">Escala 0–12 pts · 4 factores · Agua desde OSM + DGA (MOP) en tiempo real</div>
           </div>
         </div>
 
@@ -334,6 +334,7 @@ table.data-table{width:100%;border-collapse:collapse;font-size:13px;}
               <div class="legend-item"><div class="legend-dot" style="background:#E67E22;opacity:.5;border:1px solid #E67E22;"></div>Radio 2 km</div>
               <div class="legend-item"><div class="legend-dot" style="background:#F1C40F;opacity:.4;border:1px solid #d4a017;"></div>Radio 5 km</div>
               <div class="legend-item"><div class="legend-dot" style="background:#5DADE2;"></div>Agua (OSM)</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#1A6EBF;border-radius:2px;"></div>Ríos/lagos (DGA)</div>
               <div class="legend-item"><div class="legend-dot" style="background:#22d3ee;border:1px solid #0e7490;"></div>Agua marcada</div>
               <div class="legend-item"><div class="legend-dot" style="background:#7f8c8d;"></div>Plantel registrado</div>
               <div class="legend-item" style="border-top:1px solid var(--border);padding-top:5px;margin-top:3px;"><div class="legend-dot" style="background:#c0392b;"></div>Comercial</div>
@@ -754,7 +755,7 @@ out center tags;`;
     else continue;
     const tags = el.tags || {};
     features.push({
-      lat: clat, lon: clon,
+      lat: clat, lon: clon, source:'osm',
       type: tags.natural || tags.waterway || 'water',
       name: tags.name || ''
     });
@@ -762,6 +763,56 @@ out center tags;`;
   features.forEach(f => f.dist = haversine(lat, lon, f.lat, f.lon));
   features.sort((a,b) => a.dist - b.dist);
   return features;
+}
+
+// ════════════════════════════════════════════════════════════════
+//  DGA — Red Hidrográfica oficial (MOP/DGA, ArcGIS REST, en vivo)
+//  Ríos (líneas) y sistema lacustre (polígonos) a escala 1:250.000.
+// ════════════════════════════════════════════════════════════════
+const DGA_URL = 'https://rest-sit.mop.gob.cl/arcgis/rest/services/MAPA_BASE/RED_HIDROGRAFICA/MapServer';
+
+async function _fetchDGALayer(layerId, bbox){
+  const params = new URLSearchParams({
+    geometry: bbox, geometryType:'esriGeometryEnvelope',
+    inSR:'4326', outSR:'4326', spatialRel:'esriSpatialRelIntersects',
+    outFields:'NOMBRE,TIPO', returnGeometry:'true', f:'json'
+  });
+  const resp = await fetch(`${DGA_URL}/${layerId}/query?${params}`);
+  if(!resp.ok) throw new Error('DGA error');
+  return resp.json();
+}
+
+// Devuelve { points:[{lat,lon,name,type,source:'dga',dist}], rivers:[{name,latlngs}], lakes:[{name,latlngs}] }
+async function fetchDGA(lat, lon){
+  const dLat = RADIUS_SEARCH_M / 111320;
+  const dLon = RADIUS_SEARCH_M / (111320 * Math.cos(lat * Math.PI/180));
+  const bbox = `${lon-dLon},${lat-dLat},${lon+dLon},${lat+dLat}`;
+
+  const [riosData, lagosData] = await Promise.all([
+    _fetchDGALayer(16, bbox),   // Ríos (polilíneas)
+    _fetchDGALayer(17, bbox),   // sistema_lacustre (polígonos)
+  ]);
+
+  const points = [], rivers = [], lakes = [];
+
+  for(const f of (riosData.features || [])){
+    const name = (f.attributes && f.attributes.NOMBRE) || 'Río';
+    for(const path of (f.geometry && f.geometry.paths) || []){
+      const latlngs = path.map(([x,y]) => [y, x]);
+      rivers.push({ name, latlngs });
+      path.forEach(([x,y]) => points.push({ lat:y, lon:x, name, type:'río', source:'dga' }));
+    }
+  }
+  for(const f of (lagosData.features || [])){
+    const name = (f.attributes && f.attributes.NOMBRE) || 'Lago/laguna';
+    for(const ring of (f.geometry && f.geometry.rings) || []){
+      const latlngs = ring.map(([x,y]) => [y, x]);
+      lakes.push({ name, latlngs });
+      ring.forEach(([x,y]) => points.push({ lat:y, lon:x, name, type:'lago', source:'dga' }));
+    }
+  }
+  points.forEach(p => p.dist = haversine(lat, lon, p.lat, p.lon));
+  return { points, rivers, lakes };
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -905,8 +956,8 @@ function limpiarAguaManual(){
 
 function recalcularConAguaManual(){
   if(!lastEval) return;
-  const { lat, lon, tipo, manualFarms, osmWater } = lastEval;
-  runScore(lat, lon, tipo, manualFarms, osmWater);
+  const { lat, lon, tipo, manualFarms, osmWater, dga } = lastEval;
+  runScore(lat, lon, tipo, manualFarms, osmWater, dga);
 }
 
 // ── Brotes DB (localStorage) ───────────────────────────────────────
@@ -920,10 +971,11 @@ function clearMapLayers(){
 
 function addLayer(l){ leafletMap.addLayer(l); mapLayers.push(l); }
 
-function renderMap(lat, lon, tier, waterFeatures, dbFarms){
+function renderMap(lat, lon, tier, waterFeatures, dbFarms, dga){
   initMap();
   clearMapLayers();
   leafletMap.setView([lat, lon], 13);
+  dga = dga || { rivers:[], lakes:[] };
 
   // Buffer rings
   const rings = [
@@ -933,8 +985,16 @@ function renderMap(lat, lon, tier, waterFeatures, dbFarms){
   ];
   rings.forEach(({r,c,o,t}) => addLayer(L.circle([lat,lon],{radius:r,color:c,weight:1.5,fillColor:c,fillOpacity:o}).bindTooltip(t)));
 
-  // Cuerpos de agua (OSM máx. 8 + todos los marcados a mano)
-  const osmShown = waterFeatures.filter(w => !w.manual).slice(0,8);
+  // Hidrografía DGA: ríos (líneas) y lagos/lagunas (polígonos)
+  dga.rivers.forEach(r => addLayer(
+    L.polyline(r.latlngs, {color:'#1A6EBF', weight:2, opacity:.75}).bindTooltip(`💧 ${r.name} (DGA)`)
+  ));
+  dga.lakes.forEach(l => addLayer(
+    L.polygon(l.latlngs, {color:'#1A6EBF', weight:1, fillColor:'#5DADE2', fillOpacity:.35}).bindTooltip(`💧 ${l.name} (DGA)`)
+  ));
+
+  // Cuerpos de agua OSM (máx. 8) + marcados a mano; los puntos DGA no se dibujan (se ven las líneas/polígonos)
+  const osmShown = waterFeatures.filter(w => w.source === 'osm').slice(0,8);
   const manualShown = waterFeatures.filter(w => w.manual);
   osmShown.forEach(w => {
     addLayer(L.circleMarker([w.lat,w.lon],{radius:7,color:'#1A6EBF',fillColor:'#5DADE2',fillOpacity:.75,weight:2})
@@ -1031,27 +1091,33 @@ async function calcular(){
   if(lat < -90||lat > 90||lon < -180||lon > 180){ alert('Coordenadas fuera de rango.'); return; }
 
   setBtnLoading(true);
-  setOsmStatus('loading','Consultando OSM…');
+  setOsmStatus('loading','Consultando OSM + DGA…');
 
   let osmWater = [];
-  try{
-    osmWater = await fetchWater(lat, lon);
-    setOsmStatus('ok', `${osmWater.length} cuerpos de agua`);
-  } catch(e){
-    setOsmStatus('error','Sin conexión OSM');
+  let dga = { points:[], rivers:[], lakes:[] };
+  const [ro, rd] = await Promise.allSettled([ fetchWater(lat, lon), fetchDGA(lat, lon) ]);
+  if(ro.status === 'fulfilled') osmWater = ro.value;
+  if(rd.status === 'fulfilled') dga = rd.value;
+
+  if(ro.status !== 'fulfilled' && rd.status !== 'fulfilled'){
+    setOsmStatus('error','Sin conexión a fuentes de agua');
+  } else {
+    const nRios = dga.rivers.length, nLagos = dga.lakes.length;
+    setOsmStatus('ok', `OSM ${osmWater.length} · DGA ${nRios} ríos / ${nLagos} lagos`);
   }
 
-  runScore(lat, lon, tipo, manualFarms, osmWater);
+  runScore(lat, lon, tipo, manualFarms, osmWater, dga);
   setBtnLoading(false);
 }
 
-// Calcula y dibuja combinando agua OSM + agua marcada a mano.
-function runScore(lat, lon, tipo, manualFarms, osmWater){
+// Calcula y dibuja combinando agua OSM + DGA + agua marcada a mano.
+function runScore(lat, lon, tipo, manualFarms, osmWater, dga){
+  dga = dga || { points:[], rivers:[], lakes:[] };
   const manualFeatures = manualWater.map(w => ({
     lat:w.lat, lon:w.lon, name:'Marcado a mano', type:'manual', manual:true,
     dist: haversine(lat, lon, w.lat, w.lon)
   }));
-  const waterFeatures = osmWater.concat(manualFeatures).sort((a,b) => a.dist - b.dist);
+  const waterFeatures = osmWater.concat(dga.points, manualFeatures).sort((a,b) => a.dist - b.dist);
   const nearestKm = waterFeatures.length ? waterFeatures[0].dist : 6.0;
 
   const dbNearby = nearbyFarms(lat, lon);
@@ -1064,10 +1130,10 @@ function runScore(lat, lon, tipo, manualFarms, osmWater){
   const total = w + f + s + t;
   const tier = { ...getTier(total), total };
 
-  renderMap(lat, lon, tier, waterFeatures, dbNearby);
+  renderMap(lat, lon, tier, waterFeatures, dbNearby, dga);
   renderResultado(tier, {water:w,farms:f,season:s,type:t}, nearestKm, dbNearby.length, manualFarms);
 
-  lastEval = { lat, lon, tipo, manualFarms, osmWater };
+  lastEval = { lat, lon, tipo, manualFarms, osmWater, dga };
 }
 
 function setBtnLoading(on){
