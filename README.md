@@ -40,6 +40,7 @@ Archivo: `index.html`
   - **Red Hidrográfica oficial de la DGA / MOP** (ArcGIS REST, ríos 1:250.000 + sistema lacustre) — se consulta en tiempo real y se dibuja como líneas/polígonos; alimenta el cálculo de distancia al agua
 - **Capa satelital** (Esri World Imagery) para identificar visualmente esteros, tranques y humedales que ninguna fuente mapea
 - **Marcado manual de agua**: clic en el mapa para agregar cuerpos de agua que entran al cálculo de distancia (recálculo en vivo)
+- **Marcado de planteles/sectores industriales**: identifícalos a ojo en el satélite y márcalos con un clic; se **guardan** (localStorage), se dibujan siempre y **cuentan automáticamente** en el factor "planteles cercanos"
 - **Capa de brotes HPAI H5N1 Chile 2026** (SAG / WAHIS) precargada: planteles comerciales y humedales con aves silvestres positivas
 - **Registro de brotes propios** (comercial / traspatio / silvestre) guardados en `localStorage` y superpuestos a los oficiales
 - Base de datos de planteles en `localStorage`

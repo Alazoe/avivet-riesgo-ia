@@ -118,6 +118,9 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:0
 .btn-water{background:var(--surface);color:#0e7490;border:1px solid #67e8f9;border-radius:8px;padding:7px 14px;font-family:"DM Sans",sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;}
 .btn-water:hover{background:#ecfeff;}
 .btn-water.activo{background:#0e7490;color:#fff;border-color:#0e7490;}
+.btn-farm{background:var(--surface);color:#5a5650;border:1px solid #c9c4ba;border-radius:8px;padding:7px 14px;font-family:"DM Sans",sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-farm:hover{background:var(--surface2);}
+.btn-farm.activo{background:#5a5650;color:#fff;border-color:#5a5650;}
 .map-toolbar .hint{font-size:11px;color:var(--text3);}
 .map-toolbar .link-btn{background:none;border:none;color:var(--red);font-size:12px;font-weight:600;cursor:pointer;text-decoration:underline;padding:0;}
 .map-legend{padding:12px 16px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:12px;}
@@ -313,9 +316,9 @@ table.data-table{width:100%;border-collapse:collapse;font-size:13px;}
                 </select>
               </div>
               <div class="form-group" style="margin-bottom:14px;">
-                <label class="form-label">Planteles industriales identificados visualmente <span style="font-weight:400;color:var(--text3);">(radio 5 km)</span></label>
+                <label class="form-label">Planteles industriales adicionales <span style="font-weight:400;color:var(--text3);">(conteo rápido, radio 5 km)</span></label>
                 <input type="number" class="form-input" id="inp-farms-manual" min="0" max="20" value="0">
-                <span class="form-hint">Planteles detectados en Google Earth / conocimiento local no registrados en la base de datos</span>
+                <span class="form-hint">Suma extra. Para <b>guardar</b> un plantel y que cuente solo, usa <b>🏭 Marcar plantel</b> en el mapa.</span>
               </div>
 
               <!-- 5º factor: ponderación por brotes cercanos -->
@@ -349,10 +352,11 @@ table.data-table{width:100%;border-collapse:collapse;font-size:13px;}
           <div class="map-wrap">
             <div class="map-toolbar">
               <button class="btn-water" id="btn-water-mode" onclick="toggleWaterMode()">💧 Marcar agua manualmente</button>
+              <button class="btn-farm" id="btn-farm-mode" onclick="toggleFarmMode()">🏭 Marcar plantel</button>
               <label class="hint" style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;">
                 <input type="checkbox" id="chk-resueltos" checked onchange="toggleResueltos()"> Mostrar brotes resueltos (2023)
               </label>
-              <span class="hint">· Cambia a 🛰️ Satélite (arriba a la derecha) para identificar cuerpos de agua.</span>
+              <span class="hint">· Cambia a 🛰️ Satélite (arriba a la derecha) para identificar agua y galpones. Los planteles marcados se guardan y cuentan solos.</span>
               <span class="hint" id="manual-water-info" style="display:none;">· <b id="manual-water-count">0</b> marcados <button class="link-btn" onclick="limpiarAguaManual()">limpiar</button></span>
             </div>
             <div id="map"></div>
@@ -760,9 +764,11 @@ const WAHIS_BROTES = [
 let leafletMap  = null;
 let mapLayers   = [];
 let broteMarkers = [];
+let plantelMarkers = [];      // marcadores persistentes de planteles guardados
 let manualWater  = [];        // cuerpos de agua marcados a mano por el usuario
 let waterMode    = false;     // modo "marcar agua" activo
-let lastEval     = null;      // último cálculo, para recalcular al marcar agua
+let farmMode     = false;     // modo "marcar plantel" activo
+let lastEval     = null;      // último cálculo, para recalcular al marcar agua/plantel
 
 // ════════════════════════════════════════════════════════════════
 //  RIESGO — CÁLCULO
@@ -937,14 +943,38 @@ function initMap(){
     { position:'topright', collapsed:false }
   ).addTo(leafletMap);
 
-  // Clic en el mapa: si el modo "marcar agua" está activo, agrega un cuerpo de agua
+  // Clic en el mapa según el modo activo
   leafletMap.on('click', e => {
-    if(!waterMode) return;
-    manualWater.push({ lat:e.latlng.lat, lon:e.latlng.lng });
-    refreshManualWater();
+    if(farmMode){ marcarPlantelEnMapa(e.latlng.lat, e.latlng.lng); return; }
+    if(waterMode){ manualWater.push({ lat:e.latlng.lat, lon:e.latlng.lng }); refreshManualWater(); }
   });
 
   renderBrotes();
+  renderPlantelesMap();
+}
+
+// Dibuja de forma persistente todos los planteles guardados (siempre visibles)
+function renderPlantelesMap(){
+  if(!leafletMap) return;
+  plantelMarkers.forEach(m => leafletMap.removeLayer(m));
+  plantelMarkers = [];
+  loadDB().forEach(f => {
+    const icon = L.divIcon({
+      className:'',
+      html:`<div style="width:16px;height:16px;border-radius:3px;background:#7f8c8d;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;font-size:9px;">🏭</div>`,
+      iconAnchor:[8,8],
+    });
+    const popup = L.popup({maxWidth:220}).setContent(
+      `<div style="font-family:'DM Sans',sans-serif;font-size:13px;line-height:1.6;">
+        <div style="font-weight:700;">🏭 ${f.nombre}</div>
+        <div>${TYPE_LABEL[f.tipo]||f.tipo}</div>
+        ${f.notas?`<div style="font-size:11px;color:#777;">${f.notas}</div>`:''}
+        <button onclick="eliminarPlantel('${String(f.nombre).replace(/'/g,"\\'")}')" style="margin-top:6px;background:#fde8e6;color:#c0392b;border:1px solid #f5b7b1;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;">Eliminar</button>
+      </div>`);
+    const m = L.marker([f.lat, f.lon], {icon}).bindPopup(popup);
+    m.addTo(leafletMap);
+    plantelMarkers.push(m);
+  });
 }
 
 const BROTE_STYLE = {
@@ -1036,11 +1066,39 @@ function initFiltroBrotes(){
 // ── Agua manual (identificación satelital) ─────────────────────────
 function toggleWaterMode(){
   waterMode = !waterMode;
+  if(waterMode && farmMode) toggleFarmMode();   // modos mutuamente excluyentes
   const btn = document.getElementById('btn-water-mode');
   const cont = document.getElementById('map');
   btn.classList.toggle('activo', waterMode);
-  btn.textContent = waterMode ? '✓ Marcando… (clic en el mapa)' : '💧 Marcar agua manualmente';
+  btn.textContent = waterMode ? '✓ Marcando agua… (clic en el mapa)' : '💧 Marcar agua manualmente';
   cont.style.cursor = waterMode ? 'crosshair' : '';
+}
+
+// ── Marcar planteles/sectores industriales en el mapa (persistente) ─
+function toggleFarmMode(){
+  farmMode = !farmMode;
+  if(farmMode && waterMode) toggleWaterMode();
+  const btn = document.getElementById('btn-farm-mode');
+  const cont = document.getElementById('map');
+  btn.classList.toggle('activo', farmMode);
+  btn.textContent = farmMode ? '✓ Marcando plantel… (clic en el mapa)' : '🏭 Marcar plantel';
+  cont.style.cursor = farmMode ? 'crosshair' : '';
+}
+
+function marcarPlantelEnMapa(lat, lon){
+  const db = loadDB();
+  const sugerido = 'Sector industrial ' + (db.filter(f => /Sector industrial/i.test(f.nombre)).length + 1);
+  let nombre = prompt('Nombre del plantel / sector industrial:', sugerido);
+  if(nombre === null) return;            // canceló
+  nombre = nombre.trim() || sugerido;
+  if(db.find(r => r.nombre === nombre)) nombre = nombre + ' (' + Date.now().toString().slice(-4) + ')';
+  const tipo = 'confinado';
+  db.push({ nombre, lat:+lat.toFixed(6), lon:+lon.toFixed(6), tipo,
+            notas:'Marcado en satélite', fecha:new Date().toLocaleDateString('es-CL') });
+  saveDB(db);
+  renderPlantelesMap();
+  renderTablaPlantel();
+  if(lastEval) recalcularConAguaManual();   // actualiza el factor "planteles cercanos"
 }
 
 function refreshManualWater(){
@@ -1135,11 +1193,8 @@ function renderMap(lat, lon, tier, waterFeatures, dbFarms, dga){
     addLayer(L.polyline([[lat,lon],[n.lat,n.lon]],{color:n.manual?'#0e7490':'#1A6EBF',weight:1.5,dashArray:'6'}));
   }
 
-  // Otros planteles del DB
-  dbFarms.forEach(f => {
-    addLayer(L.circleMarker([f.lat,f.lon],{radius:8,color:'#7f8c8d',fillColor:'#95a5a6',fillOpacity:.7,weight:2})
-      .bindTooltip(`🏭 ${f.nombre} — ${TYPE_LABEL[f.tipo]||f.tipo}`));
-  });
+  // Los planteles guardados se dibujan de forma persistente (renderPlantelesMap),
+  // así que aquí no se redibujan. Igual cuentan en el puntaje vía nearbyFarms().
 
   // Plantel evaluado
   const tierColor = TIER_CONFIG[tier.key]?.color || '#666';
@@ -1295,12 +1350,16 @@ function agregarPlantel(){
   ['f-nombre','f-lat','f-lon','f-notas'].forEach(id => document.getElementById(id).value='');
   setTimeout(()=>{ msg.innerHTML=''; }, 2500);
   renderTablaPlantel();
+  renderPlantelesMap();
+  if(lastEval) recalcularConAguaManual();
 }
 
 function eliminarPlantel(nombre){
   if(!confirm(`¿Eliminar «${nombre}»?`)) return;
   saveDB(loadDB().filter(r => r.nombre !== nombre));
   renderTablaPlantel();
+  renderPlantelesMap();
+  if(lastEval) recalcularConAguaManual();
 }
 
 function renderTablaPlantel(){
