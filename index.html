@@ -124,6 +124,15 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:0
 .legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);}
 .legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
 
+.filtro-brotes{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px;}
+.filtro-brotes-head{font-size:12px;font-weight:700;color:var(--text2);margin-bottom:10px;}
+.filtro-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
+.filtro-row:last-child{margin-bottom:0;}
+.filtro-lbl{font-size:12px;color:var(--text3);}
+.filtro-chips{display:flex;gap:6px;flex-wrap:wrap;}
+.filtro-chip{font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;border:1px solid var(--border);background:#fff;color:var(--text3);cursor:pointer;user-select:none;transition:all .15s;}
+.filtro-chip.on{background:var(--accent-l);border-color:var(--accent2);color:var(--accent);}
+.filtro-radio{width:64px;padding:5px 8px;font-size:13px;}
 .btn-primary{width:100%;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:12px 20px;font-family:"DM Sans",sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:background .2s;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px;}
 .btn-primary:hover{background:var(--accent2);}
 .btn-primary:disabled{opacity:.5;cursor:not-allowed;}
@@ -193,10 +202,10 @@ table.data-table{width:100%;border-collapse:collapse;font-size:13px;}
     <div class="inicio-body">
 
       <div class="tiers-preview">
-        <div class="tier-chip bajo"><div class="tier-chip-dot"></div><span class="tier-chip-label">BAJO</span><span class="tier-chip-range">0–3 pts</span></div>
-        <div class="tier-chip medio"><div class="tier-chip-dot"></div><span class="tier-chip-label">MEDIO</span><span class="tier-chip-range">4–6 pts</span></div>
-        <div class="tier-chip alto"><div class="tier-chip-dot"></div><span class="tier-chip-label">ALTO</span><span class="tier-chip-range">7–9 pts</span></div>
-        <div class="tier-chip muy"><div class="tier-chip-dot"></div><span class="tier-chip-label">MUY ALTO</span><span class="tier-chip-range">10–12 pts</span></div>
+        <div class="tier-chip bajo"><div class="tier-chip-dot"></div><span class="tier-chip-label">BAJO</span><span class="tier-chip-range">0–4 pts</span></div>
+        <div class="tier-chip medio"><div class="tier-chip-dot"></div><span class="tier-chip-label">MEDIO</span><span class="tier-chip-range">5–8 pts</span></div>
+        <div class="tier-chip alto"><div class="tier-chip-dot"></div><span class="tier-chip-label">ALTO</span><span class="tier-chip-range">9–11 pts</span></div>
+        <div class="tier-chip muy"><div class="tier-chip-dot"></div><span class="tier-chip-label">MUY ALTO</span><span class="tier-chip-range">12–15 pts</span></div>
       </div>
 
       <div class="inicio-pasos">
@@ -269,7 +278,7 @@ table.data-table{width:100%;border-collapse:collapse;font-size:13px;}
           <div class="section-icon">🗺️</div>
           <div>
             <div class="section-title">Evaluación de riesgo</div>
-            <div class="section-meta">Escala 0–12 pts · 4 factores · Agua desde OSM + DGA (MOP) en tiempo real</div>
+            <div class="section-meta">Escala 0–15 pts · 5 factores · Agua OSM + DGA · Brotes WAHIS ponderados</div>
           </div>
         </div>
 
@@ -308,6 +317,24 @@ table.data-table{width:100%;border-collapse:collapse;font-size:13px;}
                 <input type="number" class="form-input" id="inp-farms-manual" min="0" max="20" value="0">
                 <span class="form-hint">Planteles detectados en Google Earth / conocimiento local no registrados en la base de datos</span>
               </div>
+
+              <!-- 5º factor: ponderación por brotes cercanos -->
+              <div class="filtro-brotes">
+                <div class="filtro-brotes-head">🦠 Brotes IA para ponderar el riesgo</div>
+                <div class="filtro-row">
+                  <span class="filtro-lbl">Años:</span>
+                  <span id="filtro-anios" class="filtro-chips"></span>
+                </div>
+                <div class="filtro-row">
+                  <span class="filtro-lbl">Tipo:</span>
+                  <span id="filtro-tipos" class="filtro-chips"></span>
+                </div>
+                <div class="filtro-row">
+                  <span class="filtro-lbl">Radio:</span>
+                  <input type="number" class="form-input filtro-radio" id="inp-brote-radio" min="1" max="50" value="10" onchange="onFiltroBrotesChange()"> <span class="filtro-lbl">km</span>
+                </div>
+              </div>
+
               <button class="btn-primary" id="btn-calcular" onclick="calcular()">
                 <span id="btn-txt">⚡ Calcular riesgo</span>
                 <div class="spinner" id="btn-spinner" style="display:none;"></div>
@@ -501,7 +528,15 @@ table.data-table{width:100%;border-collapse:collapse;font-size:13px;}
                 Acuáticas → 3 pts · Exterior → 2 pts · Confinado → 1 pt · Traspatio → 0 pts
               </div>
             </div>
+            <div class="met-item">
+              <div class="met-item-icon">🦠</div>
+              <div class="met-item-title">Brotes IA cercanos</div>
+              <div class="met-item-body">Cuenta los brotes históricos WAHIS/OMSA (2022–2026) dentro del radio elegido, filtrables por año y tipo de explotación. La proximidad a brotes previos es predictor directo de riesgo (Cárdenas 2026: OR 6.0 mismo tipo).<br><br>
+                0 → 0 pts · 1–2 → 1 pt · 3–5 → 2 pts · ≥6 → 3 pts
+              </div>
+            </div>
           </div>
+          <p style="margin-top:14px;font-size:12px;color:var(--text3);">Puntaje total <b>0–15 pts</b> (5 factores × 0–3) · BAJO 0–4 · MEDIO 5–8 · ALTO 9–11 · MUY ALTO 12–15</p>
         </div>
 
         <div class="card">
@@ -539,12 +574,17 @@ const BROTES_KEY = 'avivet_brotes_v1';
 const RADIUS_SEARCH_M = 6000;
 const FARM_RADIUS_KM  = 5.0;
 
+// Escala 0–15 (5 factores × 0–3)
 const TIER_CONFIG = {
-  bajo:  { label:'BAJO',     emoji:'🟢', pts:[0,3],  cls:'bajo',  color:'#2ECC71' },
-  medio: { label:'MEDIO',    emoji:'🟡', pts:[4,6],  cls:'medio', color:'#d4a017' },
-  alto:  { label:'ALTO',     emoji:'🟠', pts:[7,9],  cls:'alto',  color:'#E67E22' },
-  muy:   { label:'MUY ALTO', emoji:'🔴', pts:[10,12],cls:'muy',   color:'#E74C3C' },
+  bajo:  { label:'BAJO',     emoji:'🟢', pts:[0,4],   cls:'bajo',  color:'#2ECC71' },
+  medio: { label:'MEDIO',    emoji:'🟡', pts:[5,8],   cls:'medio', color:'#d4a017' },
+  alto:  { label:'ALTO',     emoji:'🟠', pts:[9,11],  cls:'alto',  color:'#E67E22' },
+  muy:   { label:'MUY ALTO', emoji:'🔴', pts:[12,15], cls:'muy',   color:'#E74C3C' },
 };
+
+// Filtro de brotes (afecta mapa y 5º factor). Se inicializa al cargar.
+const BROTE_RADIO_DEFAULT = 10; // km
+let broteFiltro = { anios:new Set(), tipos:new Set(['comercial','traspatio','silvestre']), radioKm:BROTE_RADIO_DEFAULT };
 
 const TYPE_PTS = { acuaticas:3, freerange:2, confinado:1, traspatio:0 };
 const TYPE_LABEL = {
@@ -748,6 +788,21 @@ function getTier(total){
   return { key:'muy', ...TIER_CONFIG.muy };
 }
 
+// 5º factor — brotes cercanos filtrados por año/tipo dentro del radio
+function brotePasaFiltro(b){
+  const anioOk = (b.anio == null) || broteFiltro.anios.size === 0 || broteFiltro.anios.has(b.anio);
+  const tipoOk = broteFiltro.tipos.has(b.tipo);
+  return anioOk && tipoOk;
+}
+function brotesPts(lat, lon){
+  const R = broteFiltro.radioKm;
+  const cercanos = getAllBrotes().filter(b =>
+    brotePasaFiltro(b) && haversine(lat, lon, b.lat, b.lon) <= R);
+  const n = cercanos.length;
+  const pts = n === 0 ? 0 : n <= 2 ? 1 : n <= 5 ? 2 : 3;
+  return { n, pts };
+}
+
 // ════════════════════════════════════════════════════════════════
 //  GEOMETRÍA
 // ════════════════════════════════════════════════════════════════
@@ -910,6 +965,7 @@ function renderBrotes(){
   broteMarkers = [];
   getAllBrotes().forEach(b => {
     if(b.resuelto && !mostrarResueltos) return;
+    if(!brotePasaFiltro(b)) return;
     const st = BROTE_STYLE[b.tipo] || BROTE_STYLE.silvestre;
     // Los resueltos van atenuados y sin pulso; los activos a todo color
     const activo = !b.resuelto;
@@ -942,6 +998,39 @@ function renderBrotes(){
 function toggleResueltos(){
   mostrarResueltos = document.getElementById('chk-resueltos').checked;
   if(leafletMap) renderBrotes();
+}
+
+// ── Filtro de brotes (año / tipo / radio) para el 5º factor ────────
+function aniosDisponibles(){
+  return [...new Set(getAllBrotes().map(b => b.anio).filter(a => a != null))].sort((a,b)=>b-a);
+}
+function renderFiltroBrotes(){
+  const cAnios = document.getElementById('filtro-anios');
+  const cTipos = document.getElementById('filtro-tipos');
+  if(!cAnios || !cTipos) return;
+  cAnios.innerHTML = aniosDisponibles().map(a =>
+    `<span class="filtro-chip ${broteFiltro.anios.has(a)?'on':''}" onclick="toggleFiltroAnio(${a})">${a}</span>`).join('');
+  const tipos = [['comercial','🚨 Comercial'],['traspatio','🏡 Traspatio'],['silvestre','🦢 Silvestre']];
+  cTipos.innerHTML = tipos.map(([k,lbl]) =>
+    `<span class="filtro-chip ${broteFiltro.tipos.has(k)?'on':''}" onclick="toggleFiltroTipo('${k}')">${lbl}</span>`).join('');
+}
+function toggleFiltroAnio(a){
+  broteFiltro.anios.has(a) ? broteFiltro.anios.delete(a) : broteFiltro.anios.add(a);
+  renderFiltroBrotes(); onFiltroBrotesChange();
+}
+function toggleFiltroTipo(t){
+  broteFiltro.tipos.has(t) ? broteFiltro.tipos.delete(t) : broteFiltro.tipos.add(t);
+  renderFiltroBrotes(); onFiltroBrotesChange();
+}
+function onFiltroBrotesChange(){
+  const r = parseInt(document.getElementById('inp-brote-radio').value);
+  broteFiltro.radioKm = (isNaN(r) || r < 1) ? 10 : r;
+  if(leafletMap) renderBrotes();
+  if(lastEval) recalcularConAguaManual();
+}
+function initFiltroBrotes(){
+  broteFiltro.anios = new Set(aniosDisponibles());   // todos los años activos por defecto
+  renderFiltroBrotes();
 }
 
 // ── Agua manual (identificación satelital) ─────────────────────────
@@ -1060,18 +1149,19 @@ function renderMap(lat, lon, tier, waterFeatures, dbFarms, dga){
     iconAnchor:[11,11],
   });
   const nombre = document.getElementById('inp-nombre').value || 'Plantel evaluado';
-  addLayer(L.marker([lat,lon],{icon}).bindPopup(`<b>${nombre}</b><br>Tier: ${tier.emoji} ${tier.label}<br>Puntos: ${tier.total}/12`).openPopup());
+  addLayer(L.marker([lat,lon],{icon}).bindPopup(`<b>${nombre}</b><br>Tier: ${tier.emoji} ${tier.label}<br>Puntos: ${tier.total}/15`).openPopup());
 }
 
 // ════════════════════════════════════════════════════════════════
 //  RENDER RESULTADO
 // ════════════════════════════════════════════════════════════════
-function renderResultado(tier, breakdown, waterDist, dbCount, manualCount){
+function renderResultado(tier, breakdown, waterDist, dbCount, manualCount, brotesCount){
   const factors = [
     { label:'💧 Distancia a agua',          pts: breakdown.water,  max:3, detail: waterDist < 99 ? `${waterDist.toFixed(2)} km` : '>6 km' },
     { label:'🏭 Planteles cercanos',         pts: breakdown.farms,  max:3, detail: `${dbCount+manualCount} detectados` },
     { label:'📅 Estación del año',           pts: breakdown.season, max:3, detail: seasonLabel() },
     { label:'🐔 Tipo de producción propia',  pts: breakdown.type,   max:3, detail: TYPE_LABEL[document.getElementById('inp-tipo').value] },
+    { label:'🦠 Brotes IA cercanos',         pts: breakdown.brotes, max:3, detail: `${brotesCount||0} en ${broteFiltro.radioKm} km` },
   ];
 
   const barColor = (p,m) => p>=m ? '#E74C3C' : p>=m*.66 ? '#E67E22' : p>=m*.33 ? '#d4a017' : '#2ECC71';
@@ -1094,7 +1184,7 @@ function renderResultado(tier, breakdown, waterDist, dbCount, manualCount){
           <div class="resultado-label">RIESGO ${tier.label}</div>
           <div class="resultado-date">Evaluado ${today}</div>
         </div>
-        <div class="resultado-score">${tier.total}/12</div>
+        <div class="resultado-score">${tier.total}/15</div>
       </div>
       <table class="breakdown-table">
         <thead><tr><th>Factor</th><th>Detalle</th><th>Pts</th><th>Nivel</th></tr></thead>
@@ -1159,11 +1249,12 @@ function runScore(lat, lon, tipo, manualFarms, osmWater, dga){
   const f = farmsPts(totalFarms);
   const s = seasonPts();
   const t = typePts(tipo);
-  const total = w + f + s + t;
+  const br = brotesPts(lat, lon);
+  const total = w + f + s + t + br.pts;
   const tier = { ...getTier(total), total };
 
   renderMap(lat, lon, tier, waterFeatures, dbNearby, dga);
-  renderResultado(tier, {water:w,farms:f,season:s,type:t}, nearestKm, dbNearby.length, manualFarms);
+  renderResultado(tier, {water:w,farms:f,season:s,type:t,brotes:br.pts}, nearestKm, dbNearby.length, manualFarms, br.n);
 
   lastEval = { lat, lon, tipo, manualFarms, osmWater, dga };
 }
@@ -1255,8 +1346,11 @@ function agregarBrote(){
   if(lat < -90||lat > 90||lon < -180||lon > 180){ msg.innerHTML='<span style="color:var(--red)">Coordenadas fuera de rango.</span>'; return; }
 
   const brotes = loadBrotes();
-  brotes.push({ tipo, fecha, region, lat, lon, detalle, fuente:'Registro propio' });
+  const anio = Number((fecha.match(/\b(20\d{2})\b/) || [,new Date().getFullYear()])[1]);
+  brotes.push({ tipo, fecha, region, lat, lon, detalle, anio, fuente:'Registro propio' });
   saveBrotes(brotes);
+  broteFiltro.anios.add(anio);
+  renderFiltroBrotes();
   msg.innerHTML='<span style="color:var(--ok)">✓ Brote guardado. Ya aparece en el mapa.</span>';
   ['b-fecha','b-region','b-lat','b-lon','b-detalle'].forEach(id => document.getElementById(id).value='');
   setTimeout(()=>{ msg.innerHTML=''; }, 2500);
@@ -1320,6 +1414,7 @@ function mostrarApp(){
   document.getElementById('pantalla-inicio').style.display='none';
   document.getElementById('app').classList.add('visible');
   initMap();
+  initFiltroBrotes();
   renderTablaPlantel();
 }
 </script>

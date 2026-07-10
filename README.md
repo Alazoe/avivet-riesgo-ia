@@ -6,7 +6,7 @@ Herramienta geoespacial para evaluar el riesgo de Influenza Aviar (H5N1) en plan
 
 ## ¿Qué hace?
 
-Calcula un puntaje de riesgo (0–12 puntos) combinando cuatro factores epidemiológicos validados en la literatura:
+Calcula un puntaje de riesgo (0–15 puntos) combinando cinco factores epidemiológicos validados en la literatura:
 
 | Factor | Puntaje máx. | Fundamento |
 |--------|:---:|---|
@@ -14,15 +14,16 @@ Calcula un puntaje de riesgo (0–12 puntos) combinando cuatro factores epidemio
 | Planteles industriales en radio 5 km | 3 | Gkrinia et al. 2025 — OR 6.0 mismo tipo de granja |
 | Temporada del año (austral) | 3 | Jindal et al. 2026 — verano austral = pico global |
 | Tipo de producción | 3 | Yoo et al. 2021 — aves acuáticas/exterior, mayor contacto con silvestres |
+| Brotes IA cercanos (filtrable por año/tipo) | 3 | 158 brotes WAHIS/OMSA 2022–2026; Cárdenas 2026 — OR 6.0 por proximidad |
 
 **Niveles de riesgo:**
 
 | Puntaje | Nivel | Recomendación |
 |:---:|---|---|
-| 0–3 | 🟢 BAJO | Vigilancia rutinaria |
-| 4–6 | 🟡 MEDIO | Reforzar bioseguridad, registro quincenal |
-| 7–9 | 🟠 ALTO | Plan de contingencia activo, SAG notificado |
-| 10–12 | 🔴 MUY ALTO | Alerta máxima, evaluación presencial urgente |
+| 0–4 | 🟢 BAJO | Vigilancia rutinaria |
+| 5–8 | 🟡 MEDIO | Reforzar bioseguridad, registro quincenal |
+| 9–11 | 🟠 ALTO | Plan de contingencia activo, SAG notificado |
+| 12–15 | 🔴 MUY ALTO | Alerta máxima, evaluación presencial urgente |
 
 ---
 
