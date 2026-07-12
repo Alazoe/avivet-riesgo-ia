@@ -14,7 +14,7 @@ Calcula un puntaje de riesgo (0–15 puntos) combinando cinco factores epidemiol
 | Planteles industriales en radio 5 km | 3 | Gkrinia et al. 2025 — OR 6.0 mismo tipo de granja |
 | Temporada del año (austral) | 3 | Jindal et al. 2026 — verano austral = pico global |
 | Tipo de producción | 3 | Yoo et al. 2021 — aves acuáticas/exterior, mayor contacto con silvestres |
-| Brotes IA cercanos (filtrable por año/tipo) | 3 | 158 brotes WAHIS/OMSA 2022–2026; Cárdenas 2026 — OR 6.0 por proximidad |
+| Brotes IA cercanos (filtrable por año/tipo) | 3 | 284 brotes WAHIS/OMSA 2022–2026; Cárdenas 2026 — OR 6.0 por proximidad |
 
 **Niveles de riesgo:**
 
