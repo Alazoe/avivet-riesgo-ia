@@ -127,6 +127,10 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:0
 .legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);}
 .legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
 
+.ubic-btns{display:flex;gap:8px;margin-bottom:14px;}
+.btn-ubic{flex:1;background:var(--surface);color:var(--accent);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-family:"DM Sans",sans-serif;font-size:12.5px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-ubic:hover{background:var(--accent-l);border-color:var(--accent2);}
+.btn-ubic.activo{background:var(--accent);color:#fff;border-color:var(--accent);}
 .filtro-brotes{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:14px;}
 .filtro-brotes-head{font-size:12px;font-weight:700;color:var(--text2);margin-bottom:10px;}
 .filtro-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
@@ -305,6 +309,10 @@ table.data-table{width:100%;border-collapse:collapse;font-size:13px;}
                   <input type="number" class="form-input" id="inp-lon" step="0.000001" placeholder="-73.245200" value="-73.2452">
                   <span class="form-hint">Negativo = oeste</span>
                 </div>
+              </div>
+              <div class="ubic-btns">
+                <button type="button" class="btn-ubic" id="btn-point-mode" onclick="togglePointMode()">📍 Elegir en el mapa</button>
+                <button type="button" class="btn-ubic" id="btn-geoloc" onclick="usarMiUbicacion()">🎯 Mi ubicación</button>
               </div>
               <div class="form-group" style="margin-bottom:14px;">
                 <label class="form-label">Tipo de producción</label>
@@ -768,6 +776,7 @@ let plantelMarkers = [];      // marcadores persistentes de planteles guardados
 let manualWater  = [];        // cuerpos de agua marcados a mano por el usuario
 let waterMode    = false;     // modo "marcar agua" activo
 let farmMode     = false;     // modo "marcar plantel" activo
+let pointMode    = false;     // modo "elegir punto a evaluar" activo
 let lastEval     = null;      // último cálculo, para recalcular al marcar agua/plantel
 
 // ════════════════════════════════════════════════════════════════
@@ -945,6 +954,7 @@ function initMap(){
 
   // Clic en el mapa según el modo activo
   leafletMap.on('click', e => {
+    if(pointMode){ setEvalPoint(e.latlng.lat, e.latlng.lng); return; }
     if(farmMode){ marcarPlantelEnMapa(e.latlng.lat, e.latlng.lng); return; }
     if(waterMode){ manualWater.push({ lat:e.latlng.lat, lon:e.latlng.lng }); refreshManualWater(); }
   });
@@ -1063,10 +1073,42 @@ function initFiltroBrotes(){
   renderFiltroBrotes();
 }
 
+// ── Ubicación del punto a evaluar ──────────────────────────────────
+function setEvalPoint(lat, lon){
+  document.getElementById('inp-lat').value = lat.toFixed(6);
+  document.getElementById('inp-lon').value = lon.toFixed(6);
+  if(pointMode) togglePointMode();           // modo de un solo uso
+  leafletMap.setView([lat, lon], Math.max(leafletMap.getZoom(), 13));
+  calcular();                                 // evalúa de inmediato
+}
+
+function togglePointMode(){
+  pointMode = !pointMode;
+  if(pointMode){ if(waterMode) toggleWaterMode(); if(farmMode) toggleFarmMode(); }
+  const btn = document.getElementById('btn-point-mode');
+  document.getElementById('map').style.cursor = pointMode ? 'crosshair' : '';
+  btn.classList.toggle('activo', pointMode);
+  btn.textContent = pointMode ? '✓ Clic en el mapa…' : '📍 Elegir en el mapa';
+}
+
+function usarMiUbicacion(){
+  if(!navigator.geolocation){ alert('Tu navegador no permite geolocalización.'); return; }
+  const btn = document.getElementById('btn-geoloc');
+  const txt = btn.textContent;
+  btn.textContent = '⏳ Ubicando…'; btn.disabled = true;
+  navigator.geolocation.getCurrentPosition(
+    pos => { btn.textContent = txt; btn.disabled = false;
+             setEvalPoint(pos.coords.latitude, pos.coords.longitude); },
+    err => { btn.textContent = txt; btn.disabled = false;
+             alert('No se pudo obtener tu ubicación: ' + err.message); },
+    { enableHighAccuracy:false, timeout:10000, maximumAge:60000 }
+  );
+}
+
 // ── Agua manual (identificación satelital) ─────────────────────────
 function toggleWaterMode(){
   waterMode = !waterMode;
-  if(waterMode && farmMode) toggleFarmMode();   // modos mutuamente excluyentes
+  if(waterMode){ if(farmMode) toggleFarmMode(); if(pointMode) togglePointMode(); }
   const btn = document.getElementById('btn-water-mode');
   const cont = document.getElementById('map');
   btn.classList.toggle('activo', waterMode);
@@ -1077,7 +1119,7 @@ function toggleWaterMode(){
 // ── Marcar planteles/sectores industriales en el mapa (persistente) ─
 function toggleFarmMode(){
   farmMode = !farmMode;
-  if(farmMode && waterMode) toggleWaterMode();
+  if(farmMode){ if(waterMode) toggleWaterMode(); if(pointMode) togglePointMode(); }
   const btn = document.getElementById('btn-farm-mode');
   const cont = document.getElementById('map');
   btn.classList.toggle('activo', farmMode);

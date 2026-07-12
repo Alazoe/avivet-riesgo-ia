@@ -34,6 +34,7 @@ Calcula un puntaje de riesgo (0–15 puntos) combinando cinco factores epidemiol
 Archivo: `index.html`
 
 - Sin servidor, funciona directamente en el navegador
+- **Tres formas de fijar el punto a evaluar**: escribir latitud/longitud, elegir con un clic en el mapa, o usar la ubicación GPS del navegador
 - Mapa interactivo con Leaflet.js
 - **Cuerpos de agua automáticos** desde dos fuentes en vivo:
   - **OpenStreetMap** (Overpass API)
